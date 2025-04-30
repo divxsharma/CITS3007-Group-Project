@@ -4,3 +4,4 @@
 # which will tell you the pkg-config name.
 
 libsodium
+sqlite3
