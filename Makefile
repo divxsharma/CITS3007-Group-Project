@@ -46,7 +46,9 @@ PKG_LDFLAGS := $(if $(strip $(PKG_DEPS)),$(shell pkg-config --libs $(PKG_DEPS)))
 # (e.g. to change the optimization level, enable sanitizers, etc.)
 # This is helpful when testing your code locally, even though we will
 # not necessarily use the same flags when testing your code.
-DEBUG = -g -fno-omit-frame-pointer
+
+# Added in DEBUG, -fsantize for address and UB checking 
+DEBUG = -g -fno-omit-frame-pointer -fsanitize=address,undefined
 CFLAGS = $(DEBUG) -std=c11 -pedantic-errors -Wall -Wextra $(INC_FLAGS) $(PKG_CFLAGS)
 LDFLAGS = $(PKG_LDFLAGS)
 
