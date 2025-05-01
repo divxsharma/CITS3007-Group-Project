@@ -2,5 +2,4 @@
 # to be installed below, one package per line
 
 libsodium-dev
-libsqlite3-dev
 

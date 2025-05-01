@@ -1,5 +1,5 @@
 #define _POSIX_C_SOURCE 200809L
-#define MAX_PW_LEN 127 
+#define MAX_PW_LEN 128 
 #define OPSLIMIT crypto_pwhash_OPSLIMIT_INTERACTIVE
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
 
@@ -38,23 +38,23 @@ void account_free(account_t *acc) {
 }
 
 /**
- * Verfies a users password against the stored hash.
+ * @brief Verfies a users password against the stored hash.
  *
  * The function will validate the provided plaintext password agaisnt the stored password hash.
  * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str_verify) for password verification.
  * It performs input validation and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
  * 
- * \param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
- * \param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
+ * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
+ * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
  * 
- * \pre 'acc' must be non-NULL.
- * \pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ * @pre 'acc' must be non-NULL.
+ * @pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ *
+ * @return Returns true or false.
  * 
- * \return Returns the value true if password matches the stored hash and return false if otherwise.
+ * @ref crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock() - Refer to https://doc.libsodium.org/password_hashing/default_phf
  * 
- * \ref Refer to https://doc.libsodium.org/password_hashing/default_phf,  crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock()
- * 
- * \note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
+ * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
  */
 
 bool account_validate_password(const account_t *acc, const char *plaintext_password) {
@@ -75,7 +75,7 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
   } 
 
   //Precondition 2: Plaintext_password must be valid and have null-terminated string.
-  size_t pwlen = strnlen(plaintext_password, MAX_PW_LEN + 1);
+  size_t pwlen = strnlen(plaintext_password, MAX_PW_LEN);
 
   if (pwlen == 0 || pwlen > MAX_PW_LEN){
     log_message(LOG_ERROR,"[account_validate_password]: Invalid Password Length detected");
@@ -83,8 +83,7 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
   }
 
   //Additonal layer of security - Memory locking capability: Allocate and lock the plaintext_password after usage. 
-  char secure_pw[MAX_PW_LEN + 1];
-
+  char secure_pw[MAX_PW_LEN];
   //Lock the password into memory and prevent it from being swapped to disk, if it fails then throw an error for debugging
   if (sodium_mlock(secure_pw, sizeof(secure_pw)) != 0) {
       log_message(LOG_ERROR, "[account_validate_password]: Failed to lock memory for password");
@@ -92,8 +91,8 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
   }
 
   //Copy over the secure_pw, which has been memory locked and add in a null byte
-  strncpy(secure_pw, plaintext_password, sizeof(secure_pw));
-  secure_pw[MAX_PW_LEN] = '\0';
+  strncpy(secure_pw, plaintext_password, sizeof(secure_pw) - 1);
+  secure_pw[sizeof(secure_pw)- 1] = '\0';
   
   //Save into results which provides whether crypto_verify functon works (0 = verificiation successful, -1 is an error)
   int result = crypto_pwhash_str_verify(acc->password_hash, secure_pw, pwlen);
@@ -114,23 +113,23 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
 }
 
 /**
- * Updates the user's stored password hash with the new password provided
+ * @brief Updates the user's stored password hash with the new password provided
  *
  * The function will generate a new hash from the new password provided by user and update the stored password hash in account_t structure acc.
  * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str) for password hash generation.
  * It performs input validation and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
  * 
- * \param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
- * \param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
+ * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
+ * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
  * 
- * \pre 'acc' must be non-NULL.
- * \pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ * @pre 'acc' must be non-NULL.
+ * @pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ *
+ * @return Returns true or false.
  * 
- * \return Returns the value true if password has been successfully hashed and stored and return false if otherwise.
- * 
- * \ref Refer to https://doc.libsodium.org/password_hashing/default_phf,  crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock()
- * 
- * \note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
+ * @ref crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock() - Refer to https://doc.libsodium.org/password_hashing/default_phf
+ *
+ * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
  */
 
 bool account_update_password(account_t *acc, const char *new_plaintext_password) {
@@ -148,7 +147,7 @@ bool account_update_password(account_t *acc, const char *new_plaintext_password)
   } 
 
   //Check for precondition 2: where plaintext_password must be valid and have null-terminated string.
-  size_t pwlen = strnlen(new_plaintext_password, MAX_PW_LEN + 1);
+  size_t pwlen = strnlen(new_plaintext_password, MAX_PW_LEN);
 
   if (pwlen == 0 || pwlen > MAX_PW_LEN){
     log_message(LOG_ERROR,"[account_update_password]: Invalid Password Length detected");
@@ -156,7 +155,7 @@ bool account_update_password(account_t *acc, const char *new_plaintext_password)
   }
 
   //Additonal layer of security - Memory locking capability: Allocate and lock the plaintext_password after usage. 
-  char new_secure_pw[MAX_PW_LEN + 1];
+  char new_secure_pw[MAX_PW_LEN];
 
   //Checking that memory is locked succesfully otherwise, throw an error.
   if (sodium_mlock(new_secure_pw, sizeof(new_secure_pw)) != 0 ){
@@ -165,8 +164,8 @@ bool account_update_password(account_t *acc, const char *new_plaintext_password)
   }
 
   //Copy over the new secure_pw, which has been memory locked and add in a null byte
-  strncpy(new_secure_pw, new_plaintext_password, sizeof(new_secure_pw));
-  new_secure_pw[MAX_PW_LEN] = '\0';
+  strncpy(new_secure_pw, new_plaintext_password, sizeof(new_secure_pw) - 1);
+  new_secure_pw[sizeof(new_secure_pw) - 1] = '\0';
 
   //Generate a new secure hash for the new_plaintext_password and store into structure acc->password_hash 
   int result = crypto_pwhash_str(acc->password_hash, new_secure_pw, pwlen, OPSLIMIT, MEMLIMIT);
