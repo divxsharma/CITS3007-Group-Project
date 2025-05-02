@@ -9,6 +9,9 @@
 #include <sodium.h>
 #include <string.h>
 #include <stdbool.h>
+#include <stdlib.h>
+#include <ctype.h>
+
 
 /**
  * Create a new account with the specified parameters.
@@ -19,23 +22,153 @@
  * On success, returns a pointer to the newly created account structure.
  * On error, returns NULL and logs an error message.
  */
+
+ //helper functions for validation 
+
+static bool check_email(const char *email){
+  if(!email) return false;
+  size_t len = strlen(email);
+  //must fit and not be empty
+  if (len ==0 || len >= EMAIL_LENGTH) return false;
+  const char *at = strchr(email, '@');
+  //must contain exactly one @
+  if(!at || at == email || at == email + len - 1) return false;
+  if (strchr(at+1,'@')) return false;
+
+  size_t loc_len = (size_t)(at - email);
+  if(loc_len == 0) return false;
+  const char *dom = at + 1;
+  const char *dot = strchr(dom, '.');
+  if(!dot || dot == dom || dot == email + len - 1) return false;
+
+  //goes through whether its an allowed char
+  
+  for (size_t i = 0; i < len; ++i) {
+    unsigned char c = (unsigned char)email[i];
+    if (c <= ' ' || c >= 127) return false;
+    if (i < local_len) {
+        if (!(isalnum(c) || c == '.' || c == '_' || c == '-' || c == '+')) return false;
+    } else if (email[i] == '@') {
+        continue;
+    } else {
+        if (!(isalnum(c) || c == '.' || c == '-')) return false;
+    }
+}
+return true;
+}
+// checks for yyyy-mm-dd format
+static bool check_birthdate(const char *birthdate) {
+  if (!birthdate) return false;
+  for (size_t i = 0; i < BIRTHDATE_LENGTH; ++i) {
+      if ((i == 4 || i == 7)) {
+          if (birthdate[i] != '-') return false;
+      } else if (!isdigit((unsigned char)birthdate[i])) {
+          return false;
+      }
+  }
+  // ensure no extra characters
+  return birthdate[BIRTHDATE_LENGTH] == '\0';
+}
+
+//initi lib sodium
+static bool init_libsodium(void) {
+  static bool initialized = false;
+  if (!initialized) {
+      if (libsodium_init() < 0) {
+          log_message("init_sodium: sodium_init failed");
+          return false;
+      }
+      initialized = true;
+  }
+  return true;
+}
+
+
 account_t *account_create(const char *userid, const char *plaintext_password,
                           const char *email, const char *birthdate
                       )
+              
 {
-  // remove the contents of this function and replace it with your own code.
-  (void) userid;
-  (void) plaintext_password;
-  (void) email;
-  (void) birthdate;
-
-  return NULL;
+  if (!userid || !plaintext_password || !email || !birthdate) {
+    log_message("account_create: null argument");
+    return NULL;
 }
+size_t pw_len = strlen(plaintext_password);
+if (pw_len < MIN_PASSWORD_LENGTH) {
+    log_message("account_create: password too short");
+    return NULL;
+}
+if (!check_email(email)) {
+    log_message("account_create: invalid email format");
+    return NULL;
+}
+if (!check_birthdate(birthdate)) {
+    log_message("account_create: invalid birthdate format");
+    return NULL;
+}
+if (!init_sodium()) {
+    log_message("account_create: libsodium init failed");
+    return NULL;
+}
+account_t *acc = calloc(1, sizeof(account_t));
+if (!acc) {
+    log_message("account_create: allocation failed");
+    return NULL;
+}
+// Copy user ID
+strncpy(acc->userid, userid, USER_ID_LENGTH - 1);
+acc->userid[USER_ID_LENGTH - 1] = '\0';
+// Hash password (Argon2id, moderate limits)
+if (crypto_pwhash_str(acc->password_hash,
+                      plaintext_password,
+                      pw_len,
+                      crypto_pwhash_OPSLIMIT_MODERATE,
+                      crypto_pwhash_MEMLIMIT_MODERATE) != 0) {
+    log_message("account_create: password hashing failed");
+    free(acc);
+    return NULL;
+}
+// Store email safely
+memset(acc->email, 0, EMAIL_LENGTH);
+strncpy(acc->email, email, EMAIL_LENGTH - 1);
+// Store birthdate exactly
+memcpy(acc->birthdate, birthdate, BIRTHDATE_LENGTH);
+acc->birthdate[BIRTHDATE_LENGTH] = '\0';
+return acc;
+}
+
 
 void account_free(account_t *acc) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
+  if (!acc) return;
+  // Wipe sensitive data in the struct before freeing
+  sodium_memzero(acc, sizeof *acc);
+  free(acc);
 }
+
+
+void account_set_email(account_t *acc, const char *new_email) {
+if (!acc || !new_email) {
+    log_message("account_set_email: null argument");
+    return;
+}
+if (!check_email(new_email)) {
+    log_message("account_set_email: invalid email format");
+    return;
+}
+size_t len = strlen(new_email);
+if (len >= EMAIL_LENGTH) {
+    log_message("account_set_email: email too long");
+    return;
+}
+// Atomic update
+char new_buf[EMAIL_LENGTH];
+memset(new_buf, 0, EMAIL_LENGTH);
+memcpy(new_buf, new_email, len + 1);
+memcpy(acc->email, new_buf, EMAIL_LENGTH);
+}
+
+
+
 
 /**
  * @brief Verfies a users password against the stored hash.
