@@ -116,6 +116,11 @@ if (!acc) {
     log_message(LOG_ERROR, "account_create: allocation failed");
     return NULL;
 }
+
+// Initialize ban and expiration times
+acc->unban_time = 0;           // Not banned
+acc->expiration_time = 0;      // No expiration
+
 // Copy user ID
 strncpy(acc->userid, userid, USER_ID_LENGTH - 1);
 acc->userid[USER_ID_LENGTH - 1] = '\0';
@@ -331,28 +336,114 @@ void account_record_login_failure(account_t *acc) {
   (void) acc;
 }
 
-bool account_is_banned(const account_t *acc) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
-  return false;
+/**
+ * Checks if the account is currently banned.
+ *
+ * Compares the current system time to the account's unban time.
+ * If unban_time is in the future, the account is considered banned.
+ *
+ * \param acc A pointer to the account_t structure, which contains the unban_time field indicating the ban expiration time.
+ * 
+ * \pre acc must be non-NULL.
+ *
+ * \return true if the account is banned, false otherwise.
+ */
+
+ bool account_is_banned(const account_t *acc) {
+  // Precondition: acc must be non-NULL
+  if (acc == NULL) {
+    log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer received");
+    return false;
+  }
+
+  // Check if the account is banned
+  // If unban_time is 0, there is no ban set
+  if (acc->unban_time == 0)
+    return false;
+  
+  // If current time is earlier than unban_time, the account is still banned
+  return acc->unban_time > time(NULL);
 }
+
+/**
+ * Checks if the account is currently expired.
+ *
+ * Compares the current system time to the account's expiration time.
+ * If expiration_time is in the past, the account is considered expired.
+ *
+ * \param acc A pointer to the account_t structure, which contains the expiration_time field indicating the account's expiration time.
+ * 
+ * \pre acc must be non-NULL.
+ *
+ * \return true if the account is expired, false otherwise.
+ */
 
 bool account_is_expired(const account_t *acc) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
-  return false;
+  // Precondition: acc must be non-NULL
+  if (acc == NULL) {
+    log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received");
+    return false;
+  }
+
+  // Check if the account is expired
+  // If expiration_time is 0, there is no expiration set
+  if (acc->expiration_time == 0)
+    return false;
+  
+  // If current time is later than expiration_time, the account is expired
+  return acc->expiration_time < time(NULL); 
 }
+
+/**
+ * Sets the account's unban time to the given duration.
+ *
+ * \param acc A pointer to the account_t structure.
+ * \param t The number of seconds from now until the ban should expire.
+ *
+ * \pre acc must be non-NULL.
+ */
 
 void account_set_unban_time(account_t *acc, time_t t) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
-  (void) t;
+  // Precondition: acc must be non-NULL
+  if (acc == NULL) {
+    log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received");
+    return;
+  }
+
+  // Reject negative duration to avoid accidental or malicious unban
+  if (t < 0) {
+    log_message(LOG_WARN, "[account_set_unban_time]: Negative duration provided; unban_time not updated");
+    return;
+  }
+
+  // Set the unban time to the specified duration
+  acc->unban_time = t;
 }
 
+/**
+ * Sets the account's expiration time to the given duration.
+ *
+ * \param acc A pointer to the account_t structure.
+ * \param t The number of seconds from now until the account should expire.
+ *
+ * \pre acc must be non-NULL.
+ */
+
 void account_set_expiration_time(account_t *acc, time_t t) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
-  (void) t;
+  // Precondition: acc must be non-NULL
+  if (acc == NULL) {
+    log_message(LOG_ERROR, "[account_set_expiration_time]: NULL account pointer received");
+    return;
+  }
+
+  // Reject negative duration to avoid immediate expiration or misconfiguration
+  if (t < 0) {
+    log_message(LOG_WARN, "[account_set_expiration_time]: Negative duration provided; expiration_time not updated");
+    return;
+  }
+
+  // Set the expiration time to the specified duration
+  acc->expiration_time = t;
 }
 
 void account_set_email(account_t *acc, const char *new_email) {
