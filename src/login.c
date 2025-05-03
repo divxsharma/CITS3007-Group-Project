@@ -1,3 +1,6 @@
+#include <unistd.h>
+#include <stdbool.h>
+#include <string.h>
 #include "login.h"
 #include "logging.h"
 #include "db.h"
@@ -43,22 +46,24 @@ login_result_t handle_login(const char *userid, const char *password,
   bool is_account_banned = account_is_banned(account);
   if (is_account_banned) {
     log_message(LOG_INFO, "handle_login: Account %s is banned", userid);
+    account_record_login_failure(account);
     return LOGIN_FAIL_ACCOUNT_BANNED;
   }
   bool is_account_expired = account_is_expired(account);
   if (is_account_expired) {
     log_message(LOG_INFO, "handle_login: Account %s is expired", userid);
+    account_record_login_failure(account);
     return LOGIN_FAIL_ACCOUNT_EXPIRED;
   }
 
   // Step 3: Check if the account has more than 10 consecutive failed logins
-  int failed_logins = account_get_failed_logins(account);
-  if (failed_logins > 10) {
+  if (account->login_fail_count > 10) {
     log_message(LOG_INFO, "handle_login: Account %s has too many failed logins", userid);
+    account_record_login_failure(account);
     return LOGIN_FAIL_BAD_PASSWORD;
   }
   // Step 4: Check if the password is correct
-  bool password_correct = account_check_password(account, password);
+  bool password_correct = account_validate_password(account, password);
   if (!password_correct) {
     log_message(LOG_INFO, "handle_login: Incorrect password for user %s", userid);
     return LOGIN_FAIL_BAD_PASSWORD;
