@@ -4,6 +4,8 @@
 #define MAX_LINE_LEN 256
 #define OPSLIMIT crypto_pwhash_OPSLIMIT_INTERACTIVE
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
+#define MIN_PASSWORD_LENGTH 8
+
 
 #include "account.h"
 #include "logging.h" 
@@ -28,13 +30,24 @@
 
  //helper functions for validation 
 
+/** 
+@brief Check if the email address is valid.
+ *
+ * This function checks if the provided email address is in a valid format.
+ * It ensures that the email contains exactly one '@' symbol, has a valid domain,
+ * and does not contain any invalid characters.
+ *
+ * @param email The email address to check.
+ * @return true if the email address is valid, false otherwise.
+ */
+
 static bool check_email(const char *email){
   if(!email) return false;
   size_t len = strlen(email);
-  //must fit and not be empty
+
   if (len ==0 || len >= EMAIL_LENGTH) return false;
   const char *at = strchr(email, '@');
-  //must contain exactly one @
+
   if(!at || at == email || at == email + len - 1) return false;
   if (strchr(at+1,'@')) return false;
 
@@ -59,7 +72,18 @@ static bool check_email(const char *email){
 }
 return true;
 }
-// checks for yyyy-mm-dd format
+/**
+@brief 
+Check if the birthdate is valid.
+ *
+ * This function checks if the provided birthdate is in a valid format (YYYY-MM-DD).
+ * It ensures that the date is in the correct format and does not contain any invalid characters.
+ *
+ * @param birthdate The birthdate to check.
+ * @return true if the birthdate is valid, false otherwise.
+ */
+
+
 static bool check_birthdate(const char *birthdate) {
   if (!birthdate) return false;
   for (size_t i = 0; i < BIRTHDATE_LENGTH; ++i) {
@@ -86,6 +110,22 @@ static bool init_libsodium(void) {
   return true;
 }
 
+/**
+ * @brief Create a new account with the specified parameters.
+ *
+ * This function initializes a new dynamically allocated account structure
+ * with the given user ID, hash information derived from the specified plaintext password, email address,
+ * and birthdate. Other fields are set to their default values.
+ * On success, returns a pointer to the newly created account structure.
+ * On error, returns NULL and logs an error message.
+ *
+ * @param userid The user ID for the new account.
+ * @param plaintext_password The plaintext password for the new account.
+ * @param email The email address for the new account.
+ * @param birthdate The birthdate for the new account (format: YYYY-MM-DD).
+ *
+ * @return A pointer to the newly created account structure, or NULL on error.
+ */
 
 account_t *account_create(const char *userid, const char *plaintext_password,
                           const char *email, const char *birthdate
@@ -130,8 +170,8 @@ acc->userid[USER_ID_LENGTH - 1] = '\0';
 if (crypto_pwhash_str(acc->password_hash,
                       plaintext_password,
                       pw_len,
-                      crypto_pwhash_OPSLIMIT_MODERATE,
-                      crypto_pwhash_MEMLIMIT_MODERATE) != 0) {
+                      crypto_pwhash_OPSLIMIT_INTERACTIVE,
+                      crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
     log_message(LOG_ERROR, "account_create: password hashing failed");
     free(acc);
     return NULL;
@@ -145,6 +185,14 @@ acc->birthdate[BIRTHDATE_LENGTH] = '\0';
 return acc;
 }
 
+/**
+  * @brief Free memory and resources used by the account.
+  *
+  * This function frees the memory allocated for the account structure and
+  * wipes sensitive data before freeing.
+  *
+  * @param acc A pointer to the account structure to be freed.
+  */ 
 
 void account_free(account_t *acc) {
   if (!acc) return;
@@ -152,8 +200,21 @@ void account_free(account_t *acc) {
   sodium_memzero(acc, sizeof *acc);
   free(acc);
 }
-
-
+/**
+@brief 
+* @brief Set the email address for the account.
+ *
+ * This function updates the email address of the account with the provided new email.
+ * It performs input validation to ensure that the new email is in a valid format and does not exceed the maximum length.
+ *
+ * @param acc A pointer to the account structure.
+ * @param new_email The new email address to set for the account.
+ *
+ * @pre 'acc' must be non-NULL.
+ * @pre 'new_email' must be non-NULL and a valid null-terminated string.
+ *
+ * @return void
+ */
 void account_set_email(account_t *acc, const char *new_email) {
 if (!acc || !new_email) {
     log_message(LOG_ERROR,"account_set_email: null argument");
