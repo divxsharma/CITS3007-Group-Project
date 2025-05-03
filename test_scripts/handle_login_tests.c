@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 /*
- * Test suite for the handle_login function.
+ * Test cases for the handle_login function.
  * This suite includes tests for various scenarios including:
  * - Successful login
  * - User not found
@@ -56,7 +56,7 @@ int main(void) {
     Suite *suite = suite_create("HandleLogin");
     TCase *tcase = tcase_create("Core");
 
-    // Add your test cases to the test case
+    // Add test cases to the test case
     tcase_add_test(tcase, test_handle_login_success);
 
     // Add the test case to the suite
