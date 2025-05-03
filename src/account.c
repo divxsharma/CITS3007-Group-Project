@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #define MAX_PW_LEN 128 
 #define MAX_TIME_STR_LEN 64
+#define MAX_DURATION 31536000
 #define MAX_LINE_LEN 256
 #define OPSLIMIT crypto_pwhash_OPSLIMIT_INTERACTIVE
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
@@ -448,10 +449,17 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
     return false;
   }
 
-  if (acc->unban_time == 0)
+  if (acc->unban_time == 0) {
     return false;
-  
-  return acc->unban_time > time(NULL);
+  }
+
+  time_t current_time = time(NULL);
+  if (current_time == (time_t)-1) {
+      log_message(LOG_ERROR, "[account_is_banned]: Current time not available");
+      return false;
+  }
+
+  return acc->unban_time > current_time;
 }
 
 /**
@@ -473,10 +481,17 @@ bool account_is_expired(const account_t *acc) {
     return false;
   }
 
-  if (acc->expiration_time == 0)
+  if (acc->expiration_time == 0) {
     return false;
-  
-  return acc->expiration_time < time(NULL); 
+  }
+
+  time_t current_time = time(NULL);
+  if (current_time == (time_t)-1) {
+      log_message(LOG_ERROR, "[account_is_expired]: Current time not available");
+      return false;
+  }
+
+  return acc->expiration_time < current_time; 
 }
 
 /**
@@ -502,7 +517,19 @@ void account_set_unban_time(account_t *acc, time_t t) {
   if (t == 0) {
     acc->unban_time = 0;
   } else {
-    acc->unban_time = time(NULL) + t;
+
+    time_t current_time = time(NULL);
+    if (current_time == (time_t)-1) {
+        log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available");
+        return;
+    }
+
+    if (t > MAX_DURATION) {
+      log_message(LOG_WARN, "[account_set_unban_time]: Duration exceeds maximum limit, setting to max duration");
+      t = MAX_DURATION;
+    }
+
+    acc->unban_time = current_time + t;
   }
 }
 
@@ -529,7 +556,19 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   if (t == 0) {
     acc->expiration_time = 0;
   } else {
-    acc->expiration_time = time(NULL) + t;
+
+    time_t current_time = time(NULL);
+    if (current_time == (time_t)-1) {
+        log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available");
+        return;
+    }
+
+    if (t > MAX_DURATION) {
+      log_message(LOG_WARN, "[account_set_expiration_time]: Duration exceeds maximum limit, setting to max duration");
+      t = MAX_DURATION;
+    }
+
+    acc->expiration_time = current_time + t;
   }
 }
 
