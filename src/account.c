@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "banned.h"
 
 
 /**
