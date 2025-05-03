@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include "banned.h"
 
 /**
  * Create a new account with the specified parameters.
@@ -383,6 +384,15 @@ bool account_update_password(account_t *acc, const char *new_plaintext_password)
 *
 * Covers: auditing (Lab 3), logging format (Lab 7), defensive programming.
 */
+static void format_time(time_t t, char *buffer, size_t len) {
+  if (!buffer || len == 0) return;
+  struct tm *tm_info = localtime(&t);
+  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+      strncpy(buffer, "unavailable", len - 1);
+      buffer[len - 1] = '\0';
+  }
+}
+
 void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   if (!acc) {
       log_message(LOG_ERROR, "[account_record_login_success]: NULL account pointer");
@@ -396,10 +406,7 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   }
 
   char time_str[MAX_TIME_STR_LEN] = {0};
-  if (!format_current_time(time_str, sizeof(time_str))) {
-      log_message(LOG_WARN, "[account_record_login_success]: Failed to format time for user '%s'", acc->userid);
-      strncpy(time_str, "unknown", sizeof(time_str) - 1);
-  }
+  format_time(time(NULL), time_str, sizeof(time_str));
 
   acc->last_ip = ip;
   acc->last_login_time = time(NULL);
@@ -568,14 +575,6 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   }
 }
 
-static void format_time(time_t t, char *buffer, size_t len) {
-  if (!buffer || len == 0) return;
-  struct tm *tm_info = localtime(&t);
-  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
-      strncpy(buffer, "unavailable", len - 1);
-      buffer[len - 1] = '\0';
-  }
-}
 
  bool account_print_summary(const account_t *acct, int fd) {
   if (!acct) {
