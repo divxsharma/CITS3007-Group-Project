@@ -6,7 +6,7 @@
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
 #define MIN_PASSWORD_LENGTH 8
 
-
+#include <unistd.h>
 #include "account.h"
 #include "logging.h" 
 #include <arpa/inet.h>
@@ -16,7 +16,6 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "banned.h"
 
 /**
  * Create a new account with the specified parameters.
@@ -97,19 +96,6 @@ static bool check_birthdate(const char *birthdate) {
   return birthdate[BIRTHDATE_LENGTH] == '\0';
 }
 
-//initi lib sodium
-static bool init_libsodium(void) {
-  static bool initialized = false;
-  if (!initialized) {
-      if (libsodium_init() < 0) {
-          log_message(LOG_ERROR, "init_sodium: sodium_init failed");
-          return false;
-      }
-      initialized = true;
-  }
-  return true;
-}
-
 /**
  * @brief Create a new account with the specified parameters.
  *
@@ -149,7 +135,7 @@ if (!check_birthdate(birthdate)) {
     log_message(LOG_ERROR, "account_create: invalid birthdate format");
     return NULL;
 }
-if (!init_sodium()) {
+if (!sodium_init()) {
     log_message(LOG_ERROR, "account_create: libsodium init failed");
     return NULL;
 }
@@ -415,7 +401,7 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
       strncpy(time_str, "unknown", sizeof(time_str) - 1);
   }
 
-  acc->last_login_ip = ip;
+  acc->last_ip = ip;
   acc->last_login_time = time(NULL);
   acc->login_fail_count = 0;
 
@@ -565,12 +551,6 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   acc->expiration_time = t;
 }
 
-void account_set_email(account_t *acc, const char *new_email) {
-  // remove the contents of this function and replace it with your own code.
-  (void) acc;
-  (void) new_email;
-}
-
 /**
  * @brief Print a detailed summary of a user's account to the specified file descriptor.
  *
@@ -624,7 +604,7 @@ static void format_time(time_t t, char *buffer, size_t len) {
   if ((written = write(fd, line, strlen(line))) < 0) return false;
 
   char ip_str[INET_ADDRSTRLEN] = "unavailable";
-  format_ip(acct->last_login_ip, ip_str, sizeof(ip_str));
+  format_ip(acct->last_ip, ip_str, sizeof(ip_str));
   snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str);
   if ((written = write(fd, line, strlen(line))) < 0) return false;
 
