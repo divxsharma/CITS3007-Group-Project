@@ -428,6 +428,23 @@ void account_set_email(account_t *acc, const char *new_email) {
  *
  * Covers: structured output (Lab 3), robust I/O (Lab 5), test logging (Lab 7).
  */
+ static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
+  if (!buffer || len == 0) return;
+  if (!inet_ntop(AF_INET, &ip, buffer, len)) {
+      strncpy(buffer, "unavailable", len - 1);
+      buffer[len - 1] = '\0';
+  }
+}
+
+static void format_time(time_t t, char *buffer, size_t len) {
+  if (!buffer || len == 0) return;
+  struct tm *tm_info = localtime(&t);
+  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+      strncpy(buffer, "unavailable", len - 1);
+      buffer[len - 1] = '\0';
+  }
+}
+
  bool account_print_summary(const account_t *acct, int fd) {
   if (!acct) {
       log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
