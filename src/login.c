@@ -26,11 +26,11 @@ login_result_t handle_login(const char *userid, const char *password,
 
   // Step 0: Check userid and password are not NULL
   if (userid == NULL) {
-    log_message(LOG_INFO, "handle_login: userid is NULL");
+    log_message(LOG_INFO, "handle_login: userid is NULL.\n");
     return LOGIN_FAIL_USER_NOT_FOUND;
   }
   if (password == NULL) {
-    log_message(LOG_INFO, "handle_login: password is NULL");
+    log_message(LOG_INFO, "handle_login: password is NULL.\n");
     return LOGIN_FAIL_BAD_PASSWORD;
   }
 
@@ -38,39 +38,39 @@ login_result_t handle_login(const char *userid, const char *password,
   account_t *account = {0};
   bool account_exists  = account_lookup_by_userid(userid, account);
   if (!account_exists) {
-    log_message(LOG_INFO, "handle_login: User %s not found", userid);
+    log_message(LOG_INFO, "handle_login: User %s not found.\n", userid);
     return LOGIN_FAIL_USER_NOT_FOUND;
   }
 
   // Step 2: Check if the account is banned or expired
   bool is_account_banned = account_is_banned(account);
   if (is_account_banned) {
-    log_message(LOG_INFO, "handle_login: Account %s is banned", userid);
+    log_message(LOG_INFO, "handle_login: Account %s is banned.\n", userid);
     account_record_login_failure(account);
     return LOGIN_FAIL_ACCOUNT_BANNED;
   }
   bool is_account_expired = account_is_expired(account);
   if (is_account_expired) {
-    log_message(LOG_INFO, "handle_login: Account %s is expired", userid);
+    log_message(LOG_INFO, "handle_login: Account %s is expired.\n", userid);
     account_record_login_failure(account);
     return LOGIN_FAIL_ACCOUNT_EXPIRED;
   }
 
   // Step 3: Check if the account has more than 10 consecutive failed logins
   if (account->login_fail_count > 10) {
-    log_message(LOG_INFO, "handle_login: Account %s has too many failed logins", userid);
+    log_message(LOG_INFO, "handle_login: Account %s has too many failed logins.\n", userid);
     account_record_login_failure(account);
     return LOGIN_FAIL_BAD_PASSWORD;
   }
   // Step 4: Check if the password is correct
   bool password_correct = account_validate_password(account, password);
   if (!password_correct) {
-    log_message(LOG_INFO, "handle_login: Incorrect password for user %s", userid);
+    log_message(LOG_INFO, "handle_login: Incorrect password for user '%s'.\n", userid);
     return LOGIN_FAIL_BAD_PASSWORD;
   }
   
   // Step 5: Record the log status success or failure
-  log_message(LOG_INFO, "handle_login: User %s @ %i logged in successfully", userid, client_ip);
+  log_message(LOG_INFO, "handle_login: User '%s' @ '%i' logged in successfully.\n", userid, client_ip);
   
   // Step 6: Populate the session data if successful
   session->account_id = account->account_id;
@@ -80,6 +80,6 @@ login_result_t handle_login(const char *userid, const char *password,
   // Step 7: Write appropriate messages to the client_output_fd file descriptor
   // Send success message to client
   const char *success_message = "Login successful";
-  size_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
+  size_t bytes_written = write(client_output_fd, success_message, strlen(success_message)); //TODO: Use strlen_s, srtlen (unsafe) 
   return LOGIN_SUCCESS;
 }

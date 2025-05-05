@@ -1,85 +1,77 @@
-// Banned functions
+/**
+ * @brief Banned C functions list for secure coding enforcement.
+ *
+ * This file is a compilation of known/unsafe C functions which are banned. 
+ * This is to standardised all of our developement enviroment across all coders to ensure we enfore these safe practices.
+ * We took guidance from Microsoft SDL and O'reilly security developement lifecycle practices.
+ */
 
-#ifndef BANNED_H
-#define BANNED_H
+ #ifndef BANNED_H
+ #define BANNED_H
+ 
+ #ifndef CITS3007_PERMISSIVE
+ 
+ // Reason: unsafe conversion and process control functions
+ #pragma GCC poison \
+    atof atoi atol atoll system
+ 
+ // Reason: unsafe string copy functions
+ #pragma GCC poison \
+    strcpy strcpyA strcpyW wcscpy _tcscpy _mbscpy StrCpy StrCpyA StrCpyW \
+    lstrcpy lstrcpyA lstrcpyW _tccpy _mbccpy _ftcscpy \
+    strncpy wcsncpy _tcsncpy _mbsncpy _mbsnbcpy StrCpyN StrCpyNA StrCpyNW \
+    StrNCpy strcpynA StrNCpyA StrNCpyW lstrcpyn lstrcpynA lstrcpynW _fstrncpy
 
-// store current diagnostic state, and suppress warnings (we re-enable later).
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-variable"
-//#pragma GCC diagnostic ignored "-Wmacro-redefined"
+ // Reason: unsafe string concatenation functions
+ #pragma GCC poison \
+    strcat strcatA strcatW wcscat _tcscat _mbscat StrCat StrCatA StrCatW \
+    lstrcat lstrcatA lstrcatW StrCatBuff StrCatBuffA StrCatBuffW StrCatChainW \
+    _tccat _mbccat _ftcscat strncat wcsncat _tcsncat _mbsncat _mbsnbcat \
+    StrCatN StrCatNA StrCatNW StrNCat StrNCatA StrNCatW lstrncat lstrcatnA lstrcatnW lstrcatn _fstrncat
+ 
+ // Reason: unsafe sprintf-style functions
+ #pragma GCC poison \
+    sprintfW sprintfA wsprintf wsprintfW wsprintfA sprintf swprintf \
+    _stprintf wvsprintf wvsprintfA wvsprintfW vsprintf _vstprintf vswprintf \
+    _snwprintf _snprintf _sntprintf _vsnprintf _vsnwprintf _vsntprintf \
+    wvnsprintf wvnsprintfA wvnsprintfW
 
-#ifndef CITS3007_PERMISSIVE
-
-// unsafe
-
-#pragma GCC poison \
-    atof     \
-    atoi     \
-    atol     \
-    atoll    \
-    system
-
-#undef alloca
-
-#define alloca DO_NOT_USE_alloca
-
-// alters exit behaviour
-
-#pragma GCC poison \
-    atexit          \
-    at_quick_exit
-
-// FILE-based IO, direct access to standard error streams
-
-#undef stdin
-#undef stdout
-#undef stderr
-
-#define stdin  DO_NOT_USE_stdin_USE_LOGGING
-#define stdout DO_NOT_USE_stdout_USE_LOGGING
-#define stderr DO_NOT_USE_stderr_USE_LOGGING
-
-#undef printf
-#define printf  DO_NOT_USE_printf_USE_dprintf_INSTEAD
-
-#undef fprintf
-#define fprintf DO_NOT_USE_fprintf_USE_dprintf_OR_write
-
-#undef fscanf
-#define fscanf  DO_NOT_USE_fscanf
-
-#undef scanf
-#define scanf   DO_NOT_USE_scanf
-
-#pragma GCC poison \
-    FILE        \
-    fclose      \
-    fflush      \
-    fopen       \
-    freopen     \
-    vfprintf    \
-    vprintf     \
-    vscanf      \
-    fgets       \
-    fputs       \
-    gets        \
-    puts        \
-    fgetc       \
-    fputc       \
-    getc        \
-    getchar     \
-    putc        \
-    putchar     \
-    ungetc      \
-    fread       \
-    fwrite      \
-    perror      \
-    tmpfile     \
-    tmpnam
-
-#endif // CITS3007_PERMISSIVE
-
-// Restore diagnostic state
-#pragma GCC diagnostic pop
-
-#endif // BANNED_H
+ // Reason: unsafe scanf-style input functions
+ #pragma GCC poison \
+    scanf wscanf _tscanf sscanf swscanf _stscanf snscanf snwscanf _sntscanf
+ 
+ // Reason: unsafe tokenization and path manipulation
+ #pragma GCC poison \
+    strtok _tcstok wcstok _mbstok makepath _tmakepath _makepath _wmakepath \
+    _splitpath _tsplitpath _wsplitpath
+ 
+ // Reason: unsafe string length and memory operations
+ #pragma GCC poison \
+    strlen wcslen _mbslen _mbstrlen StrLen lstrlen memcpy RtlCopyMemory \
+    CopyMemory wmemcpy
+ 
+ // Reason: unsafe gets functions
+ #pragma GCC poison \
+    gets _getts _gettws
+ 
+ // Reason: unsafe dynamic stack allocation
+ #pragma GCC poison \
+    alloca _alloca
+ 
+ // Reason: standard FILE-based I/O
+ #pragma GCC poison \
+    fopen freopen fclose fflush fgets fputs fread fwrite fgetc fputc \
+    getc getchar putc putchar ungetc tmpfile tmpnam FILE
+ 
+ // Reason: Redirect use of standard I/O streams to log-safe alternatives
+ #undef stdin
+ #undef stdout
+ #undef stderr
+ #define stdin  DO_NOT_USE_stdin_USE_LOGGING
+ #define stdout DO_NOT_USE_stdout_USE_LOGGING
+ #define stderr DO_NOT_USE_stderr_USE_LOGGING
+ 
+ #endif 
+ 
+ #endif 
+ 

@@ -1,15 +1,18 @@
 #define _POSIX_C_SOURCE 200809L
 #define MAX_PW_LEN 128 
+#define MIN_PW_LEN 8
 #define MAX_TIME_STR_LEN 64
 #define MAX_DURATION 31536000
 #define MAX_LINE_LEN 256
+#define MAX_EMAIL_LEN 100
+
 #define OPSLIMIT crypto_pwhash_OPSLIMIT_INTERACTIVE
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
-#define MIN_PASSWORD_LENGTH 8
 
-#include <unistd.h>
 #include "account.h"
 #include "logging.h" 
+#include "banned.h"
+
 #include <arpa/inet.h>
 #include <time.h>
 #include <sodium.h>
@@ -17,7 +20,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
-#include "banned.h"
+#include <unistd.h>
 
 /**
  * Create a new account with the specified parameters.
@@ -44,7 +47,7 @@
 
 static bool check_email(const char *email){
   if(!email) return false;
-  size_t len = strlen(email);
+  size_t len = strlen_s(email, MAX_EMAIL_LEN); 
 
   if (len ==0 || len >= EMAIL_LENGTH) return false;
   const char *at = strchr(email, '@');
@@ -83,7 +86,7 @@ Check if the birthdate is valid.
  * @return true if the birthdate is valid, false otherwise.
  */
 
-static bool check_birthdate(const char *birthdate) {
+static bool check_birthdate(const char *birthdate){
   if (!birthdate) return false;
   for (size_t i = 0; i < BIRTHDATE_LENGTH; ++i) {
       if ((i == 4 || i == 7)) {
@@ -112,17 +115,20 @@ static bool check_birthdate(const char *birthdate) {
  * @return A pointer to the newly created account structure, or NULL on error.
  */
 
+// TODO: Question for DIV - In account_create(), what's the logic behind using memset vs strcpy()?.
+// Especially after you've called calloc(), why is there a need to do memset? Doesn't calloc already pre-initalised all values to be 0 or '/0' for strings?
+// Regarding strlen, memset, strncpy(), these functions are flagged as unsafe and will need to be changed.
+
 account_t *account_create(const char *userid, const char *plaintext_password,
                           const char *email, const char *birthdate
-                      )
-              
+                      )       
 {
   if (!userid || !plaintext_password || !email || !birthdate) {
     log_message( LOG_ERROR,"account_create: null argument");
     return NULL;
 }
 size_t pw_len = strlen(plaintext_password);
-if (pw_len < MIN_PASSWORD_LENGTH) {
+if (pw_len < MIN_PW_LEN) {
     log_message( LOG_ERROR,"account_create: password too short");
     return NULL;
 }
@@ -147,7 +153,7 @@ if (!acc) {
 acc->unban_time = 0;
 acc->expiration_time = 0;
 
-strncpy(acc->userid, userid, USER_ID_LENGTH - 1);
+strncpy(acc->userid, userid, USER_ID_LENGTH - 1); //TODO: Use strcpy_s, strncpy (unsafe)
 acc->userid[USER_ID_LENGTH - 1] = '\0';
 if (crypto_pwhash_str(acc->password_hash,
                       plaintext_password,
@@ -159,13 +165,108 @@ if (crypto_pwhash_str(acc->password_hash,
     return NULL;
 }
 
-memset(acc->email, 0, EMAIL_LENGTH);
-strncpy(acc->email, email, EMAIL_LENGTH - 1);
 
-memcpy(acc->birthdate, birthdate, BIRTHDATE_LENGTH);
+memset(acc->email, 0, EMAIL_LENGTH); 
+strncpy(acc->email, email, EMAIL_LENGTH - 1); //TODO: Use strcpy_s, strncpy (unsafe)
+
+memcpy(acc->birthdate, birthdate, BIRTHDATE_LENGTH); //TODO: Use memcpy_s, memcpy (unsafe)
 acc->birthdate[BIRTHDATE_LENGTH] = '\0';
 return acc;
 }
+
+
+/*
+//TODO: Create a helper function to create test script for code injection
+/**
+ * @brief Checks if the password contains any dangerous characters that may lead to code injection.
+ *
+ * Disallows control characters and common shell metacharacters such as: ; & | < > ` ' " \ $
+ *
+ * @param password A null-terminated string containing the user's password.
+ * @param max_len Maximum length to check (to prevent overreads).
+ * @return true if the password is safe, false if unsafe characters are found.
+static bool password_is_safe(const char *password, size_t max_len) {
+  if (!password) return false;
+
+  const char *dangerous_chars = ";&|<>`'\"\\$";
+
+  for (size_t i = 0; i < max_len && password[i] != '\0'; ++i) {
+      unsigned char c = (unsigned char)password[i];
+
+      if (c < 33 || c > 126 || strchr(dangerous_chars, c)) {
+          return false;
+      }
+  }
+  return true;
+}
+
+account_t *account_create(const char *userid, const char *plaintext_password, const char *email, const char *birthdate) {
+  if (!userid || !plaintext_password || !email || !birthdate) {
+    log_message(LOG_ERROR, "[account_create]: Userid, plaintext, email or birthday cannot be empty/NULL.\n");
+    return NULL;
+  }
+
+  size_t pw_len; 
+  if (strlen_s(plaintext_password, MAX_PW_LEN, &pw_len) != 0 || pw_len < MIN_PW_LEN || pw_len > MAX_PW_LEN) { 
+    log_message(LOG_ERROR,"[account_create]: Invalid password format, either too short or long password provied.\n");
+    return NULL;
+  }
+
+  if (!password_is_safe(plaintext_password, pw_len)) {
+    log_message(LOG_ERROR, "[account_create]: Password contains unsafe characters that may allow injection.");
+    return NULL;
+  }
+
+  if (!check_email(email)) {
+    log_message(LOG_ERROR,"[account_create]: Invalid email format.\n");
+    return NULL;
+  }
+
+  if (!check_birthdate(birthdate)) {
+    log_message(LOG_ERROR,"[account_create]: Invalid birthdate format.\n");
+    return NULL;
+  }
+
+  if (sodium_init() < 0) {
+    log_message(LOG_ERROR,"[account_create]: Failed to initalise Libsodium library.\n");
+    return NULL;
+  }
+
+  account_t *acc = calloc(1, sizeof(account_t));
+  if (!acc) {
+    log_message(LOG_ERROR, "[account_create]: Failed to allocate memory for acc struct (calloc returned NULL).\n");
+    return NULL;
+  }
+
+  acc->unban_time = 0;
+  acc->expiration_time = 0;
+
+  if (strcpy_s(acc->userid, USER_ID_LENGTH, userid) != 0) {
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided userid string into acc struct.\n");
+    account_free(acc);
+    return NULL;
+  }
+
+  if (crypto_pwhash_str(acc->password_hash, plaintext_password, pw_len, OPSLIMIT, MEMLIMIT) != 0) {
+    log_message(LOG_ERROR, "[account_create]: Failed to securely hash password with crypto_pwhash_str().\n");
+    account_free(acc);
+    return NULL;
+  }
+
+  if (strcpy_s(acc->email, EMAIL_LENGTH, email) != 0) {
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided email string into acc struct.\n");
+    account_free(acc);
+    return NULL;
+  }
+
+  if (strcpy_s(acc->birthdate,BIRTHDATE_LENGTH, birthdate) != 0) {
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided birthdate string into acc struct.\n");
+    account_free(acc);
+    return NULL;
+
+  return acc;
+}
+*/
 
 /**
   * @brief Free memory and resources used by the account.
@@ -177,8 +278,11 @@ return acc;
   */ 
 
 void account_free(account_t *acc) {
-  if (!acc) return;
+  if (!acc) 
+    return;
+
   sodium_memzero(acc, sizeof *acc);
+
   free(acc);
 }
 /**
@@ -196,35 +300,33 @@ void account_free(account_t *acc) {
  *
  * @return void
  */
+
 void account_set_email(account_t *acc, const char *new_email) {
-if (!acc || !new_email) {
-    log_message(LOG_ERROR,"account_set_email: null argument");
-    return;
+  if (!acc || !new_email) {
+      log_message(LOG_ERROR,"[account_set_email]: Null argument");
+      return;
+  }
+  if (!check_email(new_email)) {
+      log_message( LOG_ERROR,"[account_set_email]: Invalid email format");
+      return;
+  }
+  size_t len = strlen(new_email);
+  if (len >= EMAIL_LENGTH) {
+      log_message(LOG_ERROR,"[account_set_email]: Email too long");
+      return;
+  }
+  char new_buf[EMAIL_LENGTH];
+  memset(new_buf, 0, EMAIL_LENGTH); 
+  memcpy(new_buf, new_email, len + 1); //TODO: Use memcpy_s, memcpy (unsafe)
+  memcpy(acc->email, new_buf, EMAIL_LENGTH);  //TODO: Use memcpy_s, memcpy (unsafe)
 }
-if (!check_email(new_email)) {
-    log_message( LOG_ERROR,"account_set_email: invalid email format");
-    return;
-}
-size_t len = strlen(new_email);
-if (len >= EMAIL_LENGTH) {
-    log_message(LOG_ERROR,"account_set_email: email too long");
-    return;
-}
-char new_buf[EMAIL_LENGTH];
-memset(new_buf, 0, EMAIL_LENGTH);
-memcpy(new_buf, new_email, len + 1);
-memcpy(acc->email, new_buf, EMAIL_LENGTH);
-}
-
-
-
 
 /**
  * @brief Verfies a users password against the stored hash.
  *
  * The function will validate the provided plaintext password agaisnt the stored password hash.
  * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str_verify) for password verification.
- * It performs input validation and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
+ * It performs input validation (for injections) and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
  * 
  * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
  * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
@@ -239,56 +341,52 @@ memcpy(acc->email, new_buf, EMAIL_LENGTH);
  * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
  */
 
-bool account_validate_password(const account_t *acc, const char *plaintext_password) {
-  //Reference Doc: https://doc.libsodium.org/quickstart   
+ bool account_validate_password(const account_t *acc, const char *plaintext_password) {
   if (sodium_init() < 0) {
-      log_message(LOG_ERROR,"[account_validate_password]: Libsodium library initialisation has failed");
+      log_message(LOG_ERROR, "[account_validate_password]: Failed to intialise Libsodium library.\n");
       return false;
   }
-  
-  
-  //Side Question: This validation now is just refering to the pointer/memory location of acc, that it cannot be null
-  //Should I also add on validation for the variables inside the structure, e.g. if acc -> email == NULL, etc... 
-  if (acc == NULL || plaintext_password == NULL)
-  {
-    log_message(LOG_ERROR,"[account_validate_password]: NULL input detected for acc and plaintext_password");
-    return false;
-  } 
 
-  size_t pwlen = strnlen(plaintext_password, MAX_PW_LEN);
-
-  if (pwlen == 0 || pwlen > MAX_PW_LEN){
-    log_message(LOG_ERROR,"[account_validate_password]: Invalid Password Length detected");
-    return false;
+  if (!acc || !plaintext_password) {
+      log_message(LOG_ERROR, "[account_validate_password]: NULL input detected for acc or plaintext_password.\n");
+      return false;
   }
 
-  //Additonal layer of security - Memory locking capability: Allocate and lock the plaintext_password after usage. 
+  size_t pwlen;
+  if (strlen_s(plaintext_password, MAX_PW_LEN, &pwlen) != 0 || pwlen < MIN_PW_LEN || pwlen > MAX_PW_LEN) {
+      log_message(LOG_ERROR, "[account_validate_password]: Plaintext password provided is either not properly terminated with a null byte, or password length is too short or long.\n");
+      return false;
+  }
+
+  if (!password_is_safe(plaintext_password, pwlen)) {
+      log_message(LOG_ERROR, "[account_validate_password]: Plaintext password provided contains unsafe characters that may allow injection.\n");
+      return false;
+  }
+
   char secure_pw[MAX_PW_LEN];
-  //Lock the password into memory and prevent it from being swapped to disk, if it fails then throw an error for debugging
+
   if (sodium_mlock(secure_pw, sizeof(secure_pw)) != 0) {
-      log_message(LOG_ERROR, "[account_validate_password]: Failed to lock memory for password");
+      log_message(LOG_ERROR, "[account_validate_password]: Failed to lock memory for password.\n");
       return false;
   }
 
-  
-  strncpy(secure_pw, plaintext_password, sizeof(secure_pw) - 1);
-  secure_pw[sizeof(secure_pw)- 1] = '\0';
-  
-  
+  if (strcpy_s(secure_pw, sizeof(secure_pw), plaintext_password) != 0) {
+      log_message(LOG_ERROR, "[account_validate_password]: Failed to securely copy password into memory.\n");
+      sodium_munlock(secure_pw, sizeof(secure_pw));
+      return false;
+  }
+
   int result = crypto_pwhash_str_verify(acc->password_hash, secure_pw, pwlen);
 
-  //Wipe and unlock the password buffer from memory to be used for password validation
-  sodium_munlock(secure_pw,sizeof(secure_pw));
+  sodium_munlock(secure_pw, sizeof(secure_pw));
+  sodium_memzero(secure_pw, sizeof(secure_pw));
 
-  
-  if (result == 0 ){
-    log_message(LOG_INFO,"[account_validate_password]: Password validated successfully for user '%s'", acc->userid);
-    return true;
-  }
-
-  else {
-    log_message(LOG_ERROR,"[account_validate_password]: Password validation failed for user '%s'", acc->userid);
-    return false;
+  if (result == 0) {
+      log_message(LOG_INFO, "[account_validate_password]: Password validated successfully for user '%s'.\n", acc->userid);
+      return true;
+  } else {
+      log_message(LOG_ERROR, "[account_validate_password]: Password validation failed for user '%s'.\n", acc->userid);
+      return false;
   }
 }
 
@@ -297,7 +395,7 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
  *
  * The function will generate a new hash from the new password provided by user and update the stored password hash in account_t structure acc.
  * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str) for password hash generation.
- * It performs input validation and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
+ * It performs input validation (for injections) and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
  * 
  * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
  * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
@@ -312,50 +410,53 @@ bool account_validate_password(const account_t *acc, const char *plaintext_passw
  * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
  */
 
-bool account_update_password(account_t *acc, const char *new_plaintext_password) {
+ bool account_update_password(account_t *acc, const char *new_plaintext_password) {
   if (sodium_init() < 0) {
-    log_message(LOG_ERROR,"[account_update_password]: Libsodium library initialisation has failed");
-    return false;
-  }
-  
-  if (acc == NULL || new_plaintext_password == NULL)
-  {
-    log_message(LOG_ERROR,"[account_update_password]: NULL input detected for acc and new_plaintext_password");
-    return false;
-  } 
- 
-  size_t pwlen = strnlen(new_plaintext_password, MAX_PW_LEN);
-
-  if (pwlen == 0 || pwlen > MAX_PW_LEN){
-    log_message(LOG_ERROR,"[account_update_password]: Invalid Password Length detected");
-    return false;
+      log_message(LOG_ERROR, "[account_update_password]: Failed to intialise Libsodium library.\n");
+      return false;
   }
 
-  //Additonal layer of security - Memory locking capability: Allocate and lock the plaintext_password after usage. 
+  if (!acc || !new_plaintext_password) {
+      log_message(LOG_ERROR, "[account_update_password]: NULL input detected for acc or plaintext_password.\n");
+      return false;
+  }
+
+  size_t pwlen;
+  if (strlen_s(new_plaintext_password, MAX_PW_LEN, &pwlen) != 0 || pwlen < MIN_PW_LEN || pwlen > MAX_PW_LEN) {
+      log_message(LOG_ERROR, "[account_update_password]: Plaintext password provided is either not properly terminated with a null byte, or password length is too short or long.\n");
+      return false;
+  }
+
+  if (!password_is_safe(new_plaintext_password, pwlen)) {
+      log_message(LOG_ERROR, "[account_update_password]: New plaintext password provided contains unsafe characters that may allow injection.\n");
+      return false;
+  }
+
   char new_secure_pw[MAX_PW_LEN];
-
-  if (sodium_mlock(new_secure_pw, sizeof(new_secure_pw)) != 0 ){
-    log_message(LOG_ERROR, "[account_update_password]: Failed to lock memory for new_plaintext_password");
-    return false;
+  if (sodium_mlock(new_secure_pw, sizeof(new_secure_pw)) != 0) {
+      log_message(LOG_ERROR, "[account_update_password]: Failed to lock memory for new password.\n");
+      return false;
   }
 
-  strncpy(new_secure_pw, new_plaintext_password, sizeof(new_secure_pw) - 1);
-  new_secure_pw[sizeof(new_secure_pw) - 1] = '\0';
+  if (strcpy_s(new_secure_pw, sizeof(new_secure_pw), new_plaintext_password) != 0) {
+      log_message(LOG_ERROR, "[account_update_password]: Failed to securely copy new password into memory.\n");
+      sodium_munlock(new_secure_pw, sizeof(new_secure_pw));
+      sodium_memzero(new_secure_pw, sizeof(new_secure_pw));
+      return false;
+  }
 
   int result = crypto_pwhash_str(acc->password_hash, new_secure_pw, pwlen, OPSLIMIT, MEMLIMIT);
 
-  //Wipe and unlock the password buffer from memory to be used for new password update
   sodium_munlock(new_secure_pw, sizeof(new_secure_pw));
+  sodium_memzero(new_secure_pw, sizeof(new_secure_pw));
 
-  if (result == 0){
-    log_message(LOG_INFO,"[account_update_password]: Password updated successfully for user '%s'", acc->userid);
-    return true; 
+  if (result == 0) {
+      log_message(LOG_INFO, "[account_update_password]: Password updated successfully for user '%s'.\n", acc->userid);
+      return true;
+  } else {
+      log_message(LOG_ERROR, "[account_update_password]: Password update failed for user '%s'.\n", acc->userid);
+      return false;
   }
-
-  else {
-    log_message(LOG_ERROR,"[account_update_password]: Password updated failed for user '%s'", acc->userid);
-    return false;
-  }  
 }
 
 /**
@@ -371,21 +472,21 @@ static void format_time(time_t t, char *buffer, size_t len) {
   if (!buffer || len == 0) return;
   struct tm *tm_info = localtime(&t);
   if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
-      strncpy(buffer, "unavailable", len - 1);
+      strncpy(buffer, "unavailable", len - 1); //TODO: Use strcpy_s, strncpy (unsafe)
       buffer[len - 1] = '\0';
   }
 }
 
 void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   if (!acc) {
-      log_message(LOG_ERROR, "[account_record_login_success]: NULL account pointer");
+      log_message(LOG_ERROR, "[account_record_login_success]: NULL account pointer.\n");
       return;
   }
 
   char ip_str[INET_ADDRSTRLEN] = {0};
   if (!inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN)) {
-      log_message(LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'", acc->userid);
-      strncpy(ip_str, "unknown", sizeof(ip_str) - 1);
+      log_message(LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'.\n", acc->userid);
+      strncpy(ip_str, "unknown", sizeof(ip_str) - 1); //TODO: Use strcpy_s, strncpy (unsafe)
   }
 
   char time_str[MAX_TIME_STR_LEN] = {0};
@@ -396,7 +497,7 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   acc->login_fail_count = 0;
 
   log_message(LOG_INFO,
-      "[account_record_login_success]: User '%s' successfully logged in from IP %s at %s",
+      "[account_record_login_success]: User '%s' successfully logged in from IP '%s' at '%s'.\n",
       acc->userid, ip_str, time_str);
 }
 
@@ -416,17 +517,17 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
 
  void account_record_login_failure(account_t *acc) {
   if (!acc) {
-      log_message(LOG_ERROR, "[account_record_login_failure]: NULL account pointer received.");
+      log_message(LOG_ERROR, "[account_record_login_failure]: NULL account pointer received.\n");
       return;
   }
 
   if (acc->login_fail_count == UINT_MAX) {
-      log_message(LOG_WARN, "[account_record_login_failure]: Max failure count reached for user '%s'.", acc->userid);
+      log_message(LOG_WARN, "[account_record_login_failure]: Max failure count reached for user '%s'.\n", acc->userid);
       return;
   }
 
   acc->login_fail_count++;
-  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s",
+  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s'.\n",
               acc->login_fail_count, acc->userid);
 }
 
@@ -436,27 +537,28 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
  * Compares the current system time to the account's unban time.
  * If unban_time is in the future, the account is considered banned.
  *
- * \param acc A pointer to the account_t structure, which contains the unban_time field indicating the ban expiration time.
+ * @param acc A pointer to the account_t structure, which contains the unban_time field indicating the ban expiration time.
  * 
- * \pre acc must be non-NULL.
+ * @pre acc must be non-NULL.
  *
- * \return true if the account is banned, false otherwise.
+ * @return true if the account is banned, false otherwise.
  */
 
  bool account_is_banned(const account_t *acc) {
   if (acc == NULL) {
-    log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer received");
-    return false;
+    log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer received, either account does not exist.\n");
+    return true;
   }
 
   if (acc->unban_time == 0) {
+    log_message(LOG_INFO, "[account_is_banned]: Account is not banned.\n");
     return false;
   }
 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
-      log_message(LOG_ERROR, "[account_is_banned]: Current time not available");
-      return false;
+    log_message(LOG_ERROR, "[account_is_banned]: Current time not available.\n");
+    return true;
   }
 
   return acc->unban_time > current_time;
@@ -468,27 +570,29 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
  * Compares the current system time to the account's expiration time.
  * If expiration_time is in the past, the account is considered expired.
  *
- * \param acc A pointer to the account_t structure, which contains the expiration_time field indicating the account's expiration time.
+ * @param acc A pointer to the account_t structure, which contains the expiration_time field indicating the account's expiration time.
  * 
- * \pre acc must be non-NULL.
+ * @pre acc must be non-NULL.
  *
- * \return true if the account is expired, false otherwise.
+ * @return true if the account is expired, false otherwise.
  */
 
 bool account_is_expired(const account_t *acc) {
+  // Reason: 
   if (acc == NULL) {
-    log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received");
-    return false;
+    log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received.\n");
+    return true;
   }
 
   if (acc->expiration_time == 0) {
     return false;
   }
 
+  // Reason: 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
-      log_message(LOG_ERROR, "[account_is_expired]: Current time not available");
-      return false;
+      log_message(LOG_ERROR, "[account_is_expired]: Current time not available.\n");
+      return true;
   }
 
   return acc->expiration_time < current_time; 
@@ -497,20 +601,19 @@ bool account_is_expired(const account_t *acc) {
 /**
  * Sets the account's unban time to the given duration.
  *
- * \param acc A pointer to the account_t structure.
- * \param t The number of seconds from now until the ban should expire.
+ * @param acc A pointer to the account_t structure.
+ * @param t The number of seconds from now until the ban should expire.
  *
- * \pre acc must be non-NULL.
+ * @pre acc must be non-NULL.
  */
-
 void account_set_unban_time(account_t *acc, time_t t) {
   if (acc == NULL) {
-    log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received");
+    log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received.\n");
     return;
   }
 
   if (t < 0) {
-    log_message(LOG_WARN, "[account_set_unban_time]: Negative duration provided; unban_time not updated");
+    log_message(LOG_WARN, "[account_set_unban_time]: Negative duration provided; unban_time not updated.\n");
     return;
   }
 
@@ -520,12 +623,12 @@ void account_set_unban_time(account_t *acc, time_t t) {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-        log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available");
+        log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available.\n");
         return;
     }
 
     if (t > MAX_DURATION) {
-      log_message(LOG_WARN, "[account_set_unban_time]: Duration exceeds maximum limit, setting to max duration");
+      log_message(LOG_WARN, "[account_set_unban_time]: Duration exceeds maximum limit, setting to max duration.\n");
       t = MAX_DURATION;
     }
 
@@ -536,20 +639,20 @@ void account_set_unban_time(account_t *acc, time_t t) {
 /**
  * Sets the account's expiration time to the given duration.
  *
- * \param acc A pointer to the account_t structure.
- * \param t The number of seconds from now until the account should expire.
+ * @param acc A pointer to the account_t structure.
+ * @param t The number of seconds from now until the account should expire.
  *
- * \pre acc must be non-NULL.
+ * @pre acc must be non-NULL.
  */
 
 void account_set_expiration_time(account_t *acc, time_t t) {
   if (acc == NULL) {
-    log_message(LOG_ERROR, "[account_set_expiration_time]: NULL account pointer received");
+    log_message(LOG_ERROR, "[account_set_expiration_time]: NULL account pointer received.\n");
     return;
   }
 
   if (t < 0) {
-    log_message(LOG_WARN, "[account_set_expiration_time]: Negative duration provided; expiration_time not updated");
+    log_message(LOG_WARN, "[account_set_expiration_time]: Negative duration provided; expiration_time not updated.\n");
     return;
   }
 
@@ -559,12 +662,12 @@ void account_set_expiration_time(account_t *acc, time_t t) {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-        log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available");
+        log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available.\n");
         return;
     }
 
     if (t > MAX_DURATION) {
-      log_message(LOG_WARN, "[account_set_expiration_time]: Duration exceeds maximum limit, setting to max duration");
+      log_message(LOG_WARN, "[account_set_expiration_time]: Duration exceeds maximum limit, setting to max duration.\n");
       t = MAX_DURATION;
     }
 
@@ -584,7 +687,7 @@ void account_set_expiration_time(account_t *acc, time_t t) {
  static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
   if (!buffer || len == 0) return;
   if (!inet_ntop(AF_INET, &ip, buffer, len)) {
-      strncpy(buffer, "unavailable", len - 1);
+      strncpy(buffer, "unavailable", len - 1); //TODO: Use strcpy_s, strncpy (unsafe)
       buffer[len - 1] = '\0';
   }
 }
@@ -604,27 +707,27 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   char line[MAX_LINE_LEN];
   ssize_t written;
 
-  snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid); //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false;      //TODO: Use strlen_s , strlen (unsafe)
 
-  snprintf(line, sizeof(line), "Email           : %s\n", acct->email);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "Email           : %s\n", acct->email); //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false;     //TODO: Use strlen_s , strlen (unsafe)
 
-  snprintf(line, sizeof(line), "Birthdate       : %s\n", acct->birthdate);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "Birthdate       : %s\n", acct->birthdate); //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false;         //TODO: Use strlen_s , strlen (unsafe)
 
-  snprintf(line, sizeof(line), "Login Failures  : %u\n", acct->login_fail_count);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "Login Failures  : %u\n", acct->login_fail_count); //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false;                //TODO: Use strlen_s , strlen (unsafe)
 
   char ip_str[INET_ADDRSTRLEN] = "unavailable";
   format_ip(acct->last_ip, ip_str, sizeof(ip_str));
-  snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str);  //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false; //TODO: Use strlen_s , strlen (unsafe)
 
   char time_str[MAX_TIME_STR_LEN] = "unavailable";
   format_time(acct->last_login_time, time_str, sizeof(time_str));
-  snprintf(line, sizeof(line), "Last Login Time : %s\n", time_str);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
+  snprintf(line, sizeof(line), "Last Login Time : %s\n", time_str); //TODO: Use sprintf_s, snprintf (unsafe)
+  if ((written = write(fd, line, strlen(line))) < 0) return false;  //TODO: Use strlen_s , strlen (unsafe)
 
   log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
   return true;
