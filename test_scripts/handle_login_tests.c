@@ -98,12 +98,31 @@ START_TEST(test_handle_login_success) {
     time_t login_time = time(NULL);
     ip4_addr_t client_ip = {127001}; // Localhost IP
     log_message(LOG_INFO, "Testing successful login for user: test1");
-    login_result_t result = handle_login("test1", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+    login_result_t result = handle_login("test2", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
     log_message(LOG_INFO, "Login result: %d", result);
     ck_assert_int_eq(result, LOGIN_SUCCESS);
     ck_assert_int_eq(session.account_id, 1);
     ck_assert_int_eq(session.session_start, login_time);
     ck_assert_int_eq(session.expiration_time, login_time + 24 * 60 * 60);
+} END_TEST
+
+/* 
+ * Second test case: Expected User Not Found
+ * This test case simulates a login attempt with a non-existent user.
+ */
+START_TEST(test_handle_login_user_not_found) {
+  login_session_data_t session;
+  int client_output_fd = STDOUT_FILENO; // Use standard output for testing
+  int log_fd = STDERR_FILENO; // Use standard error for logging
+  time_t login_time = time(NULL);
+  ip4_addr_t client_ip = {127001}; // Localhost IP
+  log_message(LOG_INFO, "Testing Unsuccessful user not found login for user: test1");
+  login_result_t result = handle_login("test1", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+  log_message(LOG_INFO, "Login result: %d", result);
+  ck_assert_int_eq(result, LOGIN_FAIL_USER_NOT_FOUND);
+  ck_assert_int_eq(session.account_id, 1);
+  ck_assert_int_eq(session.session_start, login_time);
+  ck_assert_int_eq(session.expiration_time, login_time + 24 * 60 * 60);
 } END_TEST
 
 int main(void) {
