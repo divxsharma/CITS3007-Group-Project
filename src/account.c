@@ -358,77 +358,109 @@ bool account_update_password(account_t *acc, const char *new_plaintext_password)
   }  
 }
 
+
 /**
-* @brief Records a successful login attempt for a user account.
-*
-* - Validates all input.
-* - Logs IP and time with user context.
-* - Resets failure counter securely.
-*
-* Covers: auditing (Lab 3), logging format (Lab 7), defensive programming.
-*/
+ * @brief Convert a timestamp to a formatted string.
+ *
+ * Formats the given `time_t` value into a human-readable timestamp string.
+ *
+ * @param t The time value to format.
+ * @param buffer Output buffer where the formatted time string is stored.
+ * @param len The length of the output buffer.
+ *
+ * @note If formatting fails, the buffer will contain "unavailable".
+ */
 static void format_time(time_t t, char *buffer, size_t len) {
-  if (!buffer || len == 0) return;
-  struct tm *tm_info = localtime(&t);
-  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
-      strncpy(buffer, "unavailable", len - 1);
-      buffer[len - 1] = '\0';
-  }
+    if (!buffer || len == 0) return;
+    struct tm *tm_info = localtime(&t);
+    if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+        strncpy(buffer, "unavailable", len - 1);
+        buffer[len - 1] = '\0';
+    }
 }
 
+/**
+ * @brief Convert an IPv4 address to a human-readable string.
+ *
+ * Safely converts a binary IP address to string format using inet_ntop.
+ *
+ * @param ip The IPv4 address to convert.
+ * @param buffer The output buffer to store the string.
+ * @param len The length of the output buffer.
+ *
+ * @note If conversion fails, "unavailable" is stored in the buffer.
+ */
+static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
+    if (!buffer || len == 0) return;
+    if (!inet_ntop(AF_INET, &ip, buffer, len)) {
+        strncpy(buffer, "unavailable", len - 1);
+        buffer[len - 1] = '\0';
+    }
+}
+
+
+/**
+ * @brief Records a successful login attempt for a user account.
+ *
+ * Resets failure count, updates login time and IP, logs the login event securely.
+ *
+ * @param acc Pointer to a valid account_t structure.
+ * @param ip The IPv4 address of the client attempting login.
+ *
+ * @note Uses defensive programming (Lab 3), secure logging (Lab 7).
+ */
 void account_record_login_success(account_t *acc, ip4_addr_t ip) {
-  if (!acc) {
-      log_message(LOG_ERROR, "[account_record_login_success]: NULL account pointer");
-      return;
-  }
+    if (!acc) {
+        log_message(LOG_ERROR, "[account_record_login_success]: NULL account pointer");
+        return;
+    }
 
-  char ip_str[INET_ADDRSTRLEN] = {0};
-  if (!inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN)) {
-      log_message(LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'", acc->userid);
-      strncpy(ip_str, "unknown", sizeof(ip_str) - 1);
-  }
+    char ip_str[INET_ADDRSTRLEN] = {0};
+    if (!inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN)) {
+        log_message(LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'", acc->userid);
+        strncpy(ip_str, "unknown", sizeof(ip_str) - 1);
+    }
 
-  char time_str[MAX_TIME_STR_LEN] = {0};
-  format_time(time(NULL), time_str, sizeof(time_str));
+    char time_str[MAX_TIME_STR_LEN] = {0};
+    format_time(time(NULL), time_str, sizeof(time_str));
 
-  acc->last_ip = ip;
-  acc->last_login_time = time(NULL);
-  acc->login_fail_count = 0;
+    acc->last_ip = ip;
+    acc->last_login_time = time(NULL);
+    acc->login_fail_count = 0;
 
-  log_message(LOG_INFO,
-      "[account_record_login_success]: User '%s' successfully logged in from IP %s at %s",
-      acc->userid, ip_str, time_str);
+    log_message(LOG_INFO,
+        "[account_record_login_success]: User '%s' successfully logged in from IP %s at %s",
+        acc->userid, ip_str, time_str);
 }
+
 
 
 /**
  * @brief Records a failed login attempt for a user account.
  *
- * Increments the login failure counter in the account struct, logs the failure,
- * and ensures the count does not exceed UINT_MAX to avoid overflow.
+ * Increments login_fail_count and logs securely.
+ * Prevents integer overflow if the count reaches UINT_MAX.
  *
  * @param acc Pointer to a valid account_t structure.
- * 
- * @note If acc is NULL, the function logs an error and exits early.
- * 
- * @covers Lab 3 (defensive programming), Lab 4 (safe integers), Lab 7 (secure logging).
+ *
+ * @note Uses safe integers (Lab 4), logging best practices (Lab 7).
  */
+void account_record_login_failure(account_t *acc) {
+    if (!acc) {
+        log_message(LOG_ERROR, "[account_record_login_failure]: NULL account pointer received.");
+        return;
+    }
 
- void account_record_login_failure(account_t *acc) {
-  if (!acc) {
-      log_message(LOG_ERROR, "[account_record_login_failure]: NULL account pointer received.");
-      return;
-  }
+    if (acc->login_fail_count == UINT_MAX) {
+        log_message(LOG_WARN, "[account_record_login_failure]: Max failure count reached for user '%s'.", acc->userid);
+        return;
+    }
 
-  if (acc->login_fail_count == UINT_MAX) {
-      log_message(LOG_WARN, "[account_record_login_failure]: Max failure count reached for user '%s'.", acc->userid);
-      return;
-  }
-
-  acc->login_fail_count++;
-  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s",
-              acc->login_fail_count, acc->userid);
+    acc->login_fail_count++;
+    log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s",
+                acc->login_fail_count, acc->userid);
 }
+
 
 /**
  * Checks if the account is currently banned.
@@ -573,61 +605,56 @@ void account_set_expiration_time(account_t *acc, time_t t) {
 }
 
 /**
- * @brief Print a detailed summary of a user's account to the specified file descriptor.
+ * @brief Print a detailed summary of a user's account.
  *
- * - Includes user ID, email, birthdate, failures, last login IP/time.
- * - All write operations are protected.
- * - Logs result.
+ * Outputs to a file descriptor including sensitive but non-secret fields.
+ * Includes user ID, email, login count, and last login metadata.
  *
- * Covers: structured output (Lab 3), robust I/O (Lab 5), test logging (Lab 7).
+ * @param acct Pointer to the account_t structure.
+ * @param fd Output file descriptor (e.g., STDOUT or socket).
+ * @return true on success, false on failure.
+ *
+ * @note Applies safe I/O (Lab 5), structured logging (Lab 7).
  */
- static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
-  if (!buffer || len == 0) return;
-  if (!inet_ntop(AF_INET, &ip, buffer, len)) {
-      strncpy(buffer, "unavailable", len - 1);
-      buffer[len - 1] = '\0';
-  }
+bool account_print_summary(const account_t *acct, int fd) {
+    if (!acct) {
+        log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
+        return false;
+    }
+
+    if (fd < 0) {
+        log_message(LOG_ERROR, "[account_print_summary]: Invalid file descriptor.");
+        return false;
+    }
+
+    char line[MAX_LINE_LEN];
+    ssize_t written;
+
+    snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    snprintf(line, sizeof(line), "Email           : %s\n", acct->email);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    snprintf(line, sizeof(line), "Birthdate       : %s\n", acct->birthdate);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    snprintf(line, sizeof(line), "Login Failures  : %u\n", acct->login_fail_count);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    char ip_str[INET_ADDRSTRLEN] = "unavailable";
+    format_ip(acct->last_ip, ip_str, sizeof(ip_str));
+    snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    char time_str[MAX_TIME_STR_LEN] = "unavailable";
+    format_time(acct->last_login_time, time_str, sizeof(time_str));
+    snprintf(line, sizeof(line), "Last Login Time : %s\n", time_str);
+    if ((written = write(fd, line, strlen(line))) < 0) return false;
+
+    log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
+    return true;
 }
 
-
- bool account_print_summary(const account_t *acct, int fd) {
-  if (!acct) {
-      log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
-      return false;
-  }
-
-  if (fd < 0) {
-      log_message(LOG_ERROR, "[account_print_summary]: Invalid file descriptor.");
-      return false;
-  }
-
-  char line[MAX_LINE_LEN];
-  ssize_t written;
-
-  snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  snprintf(line, sizeof(line), "Email           : %s\n", acct->email);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  snprintf(line, sizeof(line), "Birthdate       : %s\n", acct->birthdate);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  snprintf(line, sizeof(line), "Login Failures  : %u\n", acct->login_fail_count);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  char ip_str[INET_ADDRSTRLEN] = "unavailable";
-  format_ip(acct->last_ip, ip_str, sizeof(ip_str));
-  snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  char time_str[MAX_TIME_STR_LEN] = "unavailable";
-  format_time(acct->last_login_time, time_str, sizeof(time_str));
-  snprintf(line, sizeof(line), "Last Login Time : %s\n", time_str);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;
-
-  log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
-  return true;
-}
 
 
