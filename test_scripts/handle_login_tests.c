@@ -52,8 +52,14 @@ void log_message(log_level_t level, const char *fmt, ...) {
       panic("Invalid log level");
       break;
   }
-  vfprintf(stderr, fmt, args);
-  fprintf(stderr, "\n");  // newline, optional
+  if (level == LOG_INFO) {
+    vfprintf(stdout, fmt, args);
+    fprintf(stdout, "\n");
+  } else {
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+  }
+   
   va_end(args);
 
   pthread_mutex_unlock(&log_mutex);
@@ -87,13 +93,45 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
     }
 
     if (strcmp(userid, "test3") == 0) {
-        result->account_id = 2;
+        result->account_id = 3;
         strcpy(result->userid, "test3");
         result->unban_time = time(NULL) + 1e7; // Set a future unban time
         result->expiration_time = time(NULL) + 24*60*60;
         // Use the real password hashing function
         account_update_password(result, "hashpass3");
         return true;
+    }
+
+    if (strcmp(userid, "test4") == 0) {
+      result->account_id = 4;
+      strcpy(result->userid, "test4");
+      result->unban_time = 0;
+      result->expiration_time = time(NULL) - 24*60*60; // Set an expired account
+      // Use the real password hashing function
+      account_update_password(result, "hashpass4");
+      return true;
+    }
+
+    if (strcmp(userid, "test5") == 0) {
+      result->account_id = 4;
+      strcpy(result->userid, "test5");
+      result->unban_time = 0;
+      result->login_fail_count = 11; // Set too many failed logins
+      result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
+      // Use the real password hashing function
+      account_update_password(result, "hashpass5");
+      return true;
+    }
+
+    if (strcmp(userid, "test6") == 0) {
+      result->account_id = 4;
+      strcpy(result->userid, "test6");
+      result->unban_time = 0;
+      result->login_fail_count = 11; // Set too many failed logins
+      result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
+      // Use the real password hashing function
+      account_update_password(result, "hashpass6");
+      return true;
     }
     return false;
 }
@@ -126,7 +164,7 @@ START_TEST(test_handle_login_user_not_found) {
   int log_fd = STDERR_FILENO; // Use standard error for logging
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
-  log_message(LOG_INFO, "[TEST] Testing Unsuccessful user not found login for user: test1");
+  log_message(LOG_INFO, "[TEST] Testing Unsuccessful user not found login for user: test2");
   login_result_t result = handle_login("test2", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_USER_NOT_FOUND);
@@ -145,13 +183,64 @@ START_TEST(test_handle_login_user_banned) {
   int log_fd = STDERR_FILENO; // Use standard error for logging
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
-  log_message(LOG_INFO, "[TEST] Testing banned user login: test1");
+  log_message(LOG_INFO, "[TEST] Testing banned user login: test3");
   login_result_t result = handle_login("test3", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_ACCOUNT_BANNED);
   ck_assert_int_eq(session.account_id, 1);
   // ck_assert_int_eq(session.session_start, login_time); // Removed because early return is expected.
   // ck_assert_int_eq(session.expiration_time, login_time + 24 * 60 * 60);  // ^
+} END_TEST
+
+/* 
+ * Fourth test case: Expected user's account exoired
+ * This test case simulates a login attempt with a currently expired account.
+ */
+START_TEST(test_handle_login_user_expired) {
+  login_session_data_t session;
+  int client_output_fd = STDOUT_FILENO; // Use standard output for testing
+  int log_fd = STDERR_FILENO; // Use standard error for logging
+  time_t login_time = time(NULL);
+  ip4_addr_t client_ip = {127001}; // Localhost IP
+  log_message(LOG_INFO, "[TEST] Testing expired user login: test4");
+  login_result_t result = handle_login("test4", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+  log_message(LOG_INFO, "[TEST] Login result: %d", result);
+  ck_assert_int_eq(result, LOGIN_FAIL_ACCOUNT_EXPIRED);
+  ck_assert_int_eq(session.account_id, 1);
+} END_TEST
+
+/* 
+ * Fifth test case: Expected user's account has too many failed logins
+ * This test case simulates a login attempt with too many failed logins.
+ */
+START_TEST(test_handle_login_user_too_many_failed_logins) {
+  login_session_data_t session;
+  int client_output_fd = STDOUT_FILENO; // Use standard output for testing
+  int log_fd = STDERR_FILENO; // Use standard error for logging
+  time_t login_time = time(NULL);
+  ip4_addr_t client_ip = {127001}; // Localhost IP
+  log_message(LOG_INFO, "[TEST] Testing too many fails user login: test5");
+  login_result_t result = handle_login("test5", "hashpass5", client_ip, login_time, client_output_fd, log_fd, &session);
+  log_message(LOG_INFO, "[TEST] Login result: %d", result);
+  ck_assert_int_eq(result, LOGIN_FAIL_BAD_PASSWORD);
+  ck_assert_int_eq(session.account_id, 1);
+} END_TEST
+
+/* 
+ * Sixth test case: Expected user's provides incorrect password
+ * This test case simulates a login attempt a correct username but incorrect password.
+ */
+START_TEST(test_handle_login_correct_username_incorrect_password) {
+  login_session_data_t session;
+  int client_output_fd = STDOUT_FILENO; // Use standard output for testing
+  int log_fd = STDERR_FILENO; // Use standard error for logging
+  time_t login_time = time(NULL);
+  ip4_addr_t client_ip = {127001}; // Localhost IP
+  log_message(LOG_INFO, "[TEST] Testing correct username incorrect password user login: test5");
+  login_result_t result = handle_login("test6", "abc123", client_ip, login_time, client_output_fd, log_fd, &session);
+  log_message(LOG_INFO, "[TEST] Login result: %d", result);
+  ck_assert_int_eq(result, LOGIN_FAIL_BAD_PASSWORD);
+  ck_assert_int_eq(session.account_id, 1);
 } END_TEST
 
 int main(void) {
@@ -162,6 +251,9 @@ int main(void) {
     tcase_add_test(tcase, test_handle_login_success);
     tcase_add_test(tcase, test_handle_login_user_not_found);
     tcase_add_test(tcase, test_handle_login_user_banned);
+    tcase_add_test(tcase, test_handle_login_user_expired);
+    tcase_add_test(tcase, test_handle_login_user_too_many_failed_logins);
+    tcase_add_test(tcase, test_handle_login_correct_username_incorrect_password);
     // Add the test case to the suite
     suite_add_tcase(suite, tcase);
 

@@ -79,7 +79,7 @@ login_result_t handle_login(const char *userid, const char *password,
 
   // Step 7: Write appropriate messages to the client_output_fd file descriptor
   // Send success message to client
-  const char *success_message = "Login successful";
+  const char *success_message = "[handle_login] Login successful\n";
   size_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
   return LOGIN_SUCCESS;
 }
