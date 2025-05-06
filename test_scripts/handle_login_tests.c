@@ -1,10 +1,64 @@
-#include <check.h>
+#define CITS3007_PERMISSIVE
+
+#include "../src/logging.h"
 #include "../src/login.h"
 #include "../src/account.h"
 #include "../src/logging.h"
+#include <check.h>
+#include <pthread.h>
+#include <stdlib.h>
 #include <time.h>
 #include <unistd.h>
 #include <stdbool.h>
+
+/* Panic function replacement */
+/**
+ * Abort immediately for unrecoverable errors /
+ * invalid program state.
+ * 
+ * Arguments:
+ * - msg: message to log before aborting
+ * 
+ * This function should not return.
+ */
+static void panic(const char *msg) {
+    fprintf(stderr, "PANIC: %s\n", msg);
+    abort();
+}
+/* Logging function replacement */
+// Global mutex for logging
+// This mutex is used to ensure that log messages are printed in a thread-safe manner.
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+void log_message(log_level_t level, const char *fmt, ...) {
+  pthread_mutex_lock(&log_mutex);
+
+  va_list args;
+  va_start(args, fmt);
+  switch (level) {
+    case LOG_DEBUG:
+      fprintf(stderr, "DEBUG: ");
+      break;
+    case LOG_INFO:
+      fprintf(stdout, "INFO: ");
+      break;
+    case LOG_WARN:
+      fprintf(stderr, "WARNING: ");
+      break;
+    case LOG_ERROR:
+      fprintf(stderr, "ERROR: ");
+      break;
+    default:
+      panic("Invalid log level");
+      break;
+  }
+  vfprintf(stderr, fmt, args);
+  fprintf(stderr, "\n");  // newline, optional
+  va_end(args);
+
+  pthread_mutex_unlock(&log_mutex);
+}
+
 /*
  * Test cases for the handle_login function.
  * This suite includes tests for various scenarios including:
@@ -19,16 +73,16 @@
 
 /* Mock lookup function to simulate the database.
  * Each case will have its own unique mock account lookup return.
+ * Run with: gcc test_scripts/handle_login_tests.c src/login.c src/account.c -I./src -lcheck -lsodium -lsubunit -lpthread -lrt -lm -o test_scripts/handle_login_tests
  */
 bool account_lookup_by_userid(const char *userid, account_t *result) {
-    //  First case setup:
     if (strcmp(userid, "test1") == 0) {
-        // Populate a mock account
         result->account_id = 1;
         strcpy(result->userid, "test1");
-        strcpy(result->password_hash, "hashpass1");
-        result->unban_time = 0; // Not banned
-        result->expiration_time = time(NULL) + 3600; // Not expired
+        result->unban_time = 0;
+        result->expiration_time = time(NULL) + 24*60*60;
+        // Use the real password hashing function
+        account_update_password(result, "hashpass1");
         return true;
     }
     return false;
@@ -43,9 +97,9 @@ START_TEST(test_handle_login_success) {
     int log_fd = STDERR_FILENO; // Use standard error for logging
     time_t login_time = time(NULL);
     ip4_addr_t client_ip = {127001}; // Localhost IP
-
+    log_message(LOG_INFO, "Testing successful login for user: test1");
     login_result_t result = handle_login("test1", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
-
+    log_message(LOG_INFO, "Login result: %d", result);
     ck_assert_int_eq(result, LOGIN_SUCCESS);
     ck_assert_int_eq(session.account_id, 1);
     ck_assert_int_eq(session.session_start, login_time);
