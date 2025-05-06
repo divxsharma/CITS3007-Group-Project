@@ -4,6 +4,7 @@
  * This file is a compilation of known/unsafe C functions which are banned. 
  * This is to standardised all of our developement enviroment across all coders to ensure we enfore these safe practices.
  * We took guidance from Microsoft SDL and O'reilly security developement lifecycle practices.
+ * We will be utilising CITS3007 existing development environment - libbsd to use secure C functions.
  */
 
  #ifndef BANNED_H

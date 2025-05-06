@@ -4,6 +4,7 @@
 #include "login.h"
 #include "logging.h"
 #include "db.h"
+#include "banned.h"
 
 login_result_t handle_login(const char *userid, const char *password,
                             ip4_addr_t client_ip, time_t login_time,
@@ -80,6 +81,6 @@ login_result_t handle_login(const char *userid, const char *password,
   // Step 7: Write appropriate messages to the client_output_fd file descriptor
   // Send success message to client
   const char *success_message = "Login successful";
-  size_t bytes_written = write(client_output_fd, success_message, strlen(success_message)); //TODO: Use strlen_s, srtlen (unsafe) 
+  //size_t bytes_written = write(client_output_fd, success_message, strlen(success_message)); //TODO: Use strlen_s, srtlen (unsafe) 
   return LOGIN_SUCCESS;
 }
