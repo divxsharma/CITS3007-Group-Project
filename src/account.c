@@ -569,17 +569,19 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
               acc->login_fail_count, acc->userid);
 }
 
-/**
- * Checks if the account is currently banned.
+/** @brief Checks if the account is currently banned.
  *
- * Compares the current system time to the account's unban time.
- * If unban_time is in the future, the account is considered banned.
+ *  Compares the current system time to the account’s 'unban_time':
+ *  if 'unban_time' is zero or in the past, the account is not banned; 
+ *  if in the 'unban_time' is in the future, the account is banned.
  *
- * @param acc A pointer to the account_t structure, which contains the unban_time field indicating the ban expiration time.
+ *  @param acc pointer to an account_t struct with 'unban_time'.
  * 
- * @pre acc must be non-NULL.
- *
- * @return true if the account is banned, false otherwise.
+ *  @pre 'acc' must not be NULL.
+ * 
+ *  @return true if the account is banned, false otherwise.
+ * 
+ *  @note Logs an error and returns true if obtaining system time fails or acc is NULL.
  */
 
  bool account_is_banned(const account_t *acc) {
@@ -603,20 +605,22 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
 }
 
 /**
- * Checks if the account is currently expired.
+ * @brief Checks if the account is currently expired.
  *
- * Compares the current system time to the account's expiration time.
- * If expiration_time is in the past, the account is considered expired.
+ * Compares the current system time to the account’s 'expiration_time':
+ * if 'expiration_time' is zero or in the future, the account is not expired;
+ * if 'expiration_time' is in the past, the account is expired.
  *
- * @param acc A pointer to the account_t structure, which contains the expiration_time field indicating the account's expiration time.
+ * @param acc pointer to an account_t struct with 'expiration_time'
+ *
+ * @pre 'acc' must be non-NULL.
+ *
+ * @return true if the account is currently expired; false if it is not expired.
  * 
- * @pre acc must be non-NULL.
- *
- * @return true if the account is expired, false otherwise.
+ * @note Logs an error and returns true if obtaining system time fails or acc is NULL.
  */
 
 bool account_is_expired(const account_t *acc) {
-  // Reason: 
   if (acc == NULL) {
     log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received.\n");
     return true;
@@ -626,24 +630,32 @@ bool account_is_expired(const account_t *acc) {
     return false;
   }
 
-  // Reason: 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
-      log_message(LOG_ERROR, "[account_is_expired]: Current time not available.\n");
-      return true;
+    log_message(LOG_ERROR, "[account_is_expired]: Current time not available.\n");
+    return true;
   }
 
   return acc->expiration_time < current_time; 
 }
 
 /**
- * Sets the account's unban time to the given duration.
+ * @brief Sets the account’s unban time.
  *
- * @param acc A pointer to the account_t structure.
- * @param t The number of seconds from now until the ban should expire.
+ *  This function updates the account's 'unban_time' field based on the given duration:
+ *  If the duration is zero, the account is immediately unbanned (unban_time set to 0). 
+ *  If the duration is positive, unban_time is set to the current system time plus the duration. 
+ *  If the duration exceeds the maximum allowed, it is capped at MAX_DURATION.
  *
- * @pre acc must be non-NULL.
+ * @param acc pointer to an account_t struct with 'unban_time'.
+ * @param t number of seconds until the ban expires
+ *
+ * @pre 'acc' must be non-NULL.
+ *
+ * @note If the system time retrieval fails, if 'acc' is NULL, or if a negative duration is provided,
+ *       the function logs an error or warning and does not update 'unban_time'.
  */
+
 void account_set_unban_time(account_t *acc, time_t t) {
   if (acc == NULL) {
     log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received.\n");
@@ -661,8 +673,8 @@ void account_set_unban_time(account_t *acc, time_t t) {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-        log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available.\n");
-        return;
+      log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available.\n");
+      return;
     }
 
     if (t > MAX_DURATION) {
@@ -675,12 +687,20 @@ void account_set_unban_time(account_t *acc, time_t t) {
 }
 
 /**
- * Sets the account's expiration time to the given duration.
+ * @brief Sets the account’s expiration time.
  *
- * @param acc A pointer to the account_t structure.
- * @param t The number of seconds from now until the account should expire.
+ * This function updates the account's 'expiration_time' field based on the given duration:
+ *  If the duration is zero, the account is set to never expire (expiration_time set to 0).  
+ *  If the duration is positive, expiration_time is set to the current system time plus the duration.  
+ *  If the duration exceeds the maximum allowed, it is capped at MAX_DURATION.
  *
- * @pre acc must be non-NULL.
+ * @param acc pointer to an account_t struct with 'expiration_time'
+ * @param t number of seconds until the ban expires
+ *
+ * @pre 'acc' must be non-NULL.
+ *
+ * @note If the system time retrieval fails, if 'acc' is NULL, or if a negative duration is provided,
+ *       the function logs an error or warning and does not update 'expiration_time'.
  */
 
 void account_set_expiration_time(account_t *acc, time_t t) {
@@ -700,8 +720,8 @@ void account_set_expiration_time(account_t *acc, time_t t) {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-        log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available.\n");
-        return;
+      log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available.\n");
+      return;
     }
 
     if (t > MAX_DURATION) {
