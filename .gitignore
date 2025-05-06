@@ -21,6 +21,3 @@ project-phase-2-specs.pdf
 *.BAK
 *.NEW
 
-# Ignore all binaries.
-*
-!*.*
