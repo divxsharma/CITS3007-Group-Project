@@ -1,3 +1,21 @@
+/**
+ * @file account.c
+ * @brief Implements account-related functionality including creation, validation, and secure password handling using libsodium.
+ *
+ * This file contains functions for managing user accounts, including validating
+ * email and birthdate formats, enforcing strong password rules, and securely
+ * hashing and verifying passwords. It relies on the libsodium library for cryptographic
+ * operations and includes logging for error diagnosis.
+ *
+ * @author Div Sharma [23810783]
+ * @author Pranav Rajput [23736075]
+ * @author William Lo [23722943]
+ * @author Zachary Wang [24648002]
+ * @author Jun Hao Dennis Lou [23067779]
+ *
+ * @bug No known bugs.
+ */
+
 #define _POSIX_C_SOURCE 200809L
 #define MAX_PW_LEN 128 
 #define MIN_PW_LEN 8
@@ -23,70 +41,100 @@
 #include <unistd.h>
 #include "banned.h"
 
-
-
-
 /**
- * Create a new account with the specified parameters.
+ * @brief Validates an email address string.
  *
- * This function initializes a new dynamically allocated account structure
- * with the given user ID, hash information derived from the specified plaintext password, email address,
- * and birthdate. Other fields are set to their default values.
- * On success, returns a pointer to the newly created account structure.
- * On error, returns NULL and logs an error message.
- */
-
- //helper functions for validation 
-/** 
-@brief Check if the email address is valid.
+ * This function checks whether a given email string meets the formatting criteria:
+ * - Email mustcontain exactly one '@' symbol.
+ * - Before the "@" symbol, the values must not be empty and contain only valid characters.
+ * - After the "@" symbol, it must contain at least one '.' and contain only valid characters.
+ * - Entire Email string must be ASCII-printable and within defined length limits.
  *
- * This function checks if the provided email address is in a valid format.
- * It ensures that the email contains exactly one '@' symbol, has a valid domain,
- * and does not contain any invalid characters.
+ * @param email A null-terminated string representing the email address to validate.
  *
- * @param email The email address to check.
- * @return true if the email address is valid, false otherwise.
+ * @pre `email` must not be NULL or empty.
+ * @pre `MAX_EMAIL_LEN` and `EMAIL_LENGTH` must be properly defined.
+ *
+ * @post Returns true if the email passes all structural and character validity checks, otherwise, false.
+ *
+ * @return `true` if the input string is a valid email address; `false` if any format rule is violated.
  */
 
 static bool check_email(const char *email){
-  if(!email) return false;
+  if(!email){
+    return false;
+  }
+
   size_t len = strnlen(email, MAX_EMAIL_LEN); 
 
-  if (len ==0 || len >= EMAIL_LENGTH) return false;
+  if (len ==0 || len >= EMAIL_LENGTH){
+    return false;
+  }
+
   const char *at = strchr(email, '@');
 
-  if(!at || at == email || at == email + len - 1) return false;
-  if (strchr(at+1,'@')) return false;
+  if(!at || at == email || at == email + len - 1){
+    return false;
+  }
+
+  if (strchr(at+1,'@')){
+    return false;
+  } 
 
   size_t loc_len = (size_t)(at - email);
-  if(loc_len == 0) return false;
+
+  if(loc_len == 0){
+    return false;
+  }
+
   const char *dom = at + 1;
   const char *dot = strchr(dom, '.');
-  if(!dot || dot == dom || dot == email + len - 1) return false;
+
+  if(!dot || dot == dom || dot == email + len - 1){
+    return false;
+  } 
   
   for (size_t i = 0; i < len; ++i) {
+
     unsigned char c = (unsigned char)email[i];
-    if (c <= ' ' || c >= 127) return false;
+
+    if (c <= ' ' || c >= 127){
+      return false;
+    } 
+
     if (i < loc_len) {
-        if (!(isalnum(c) || c == '.' || c == '_' || c == '-' || c == '+')) return false;
-    } else if (email[i] == '@') {
+        if (!(isalnum(c) || c == '.' || c == '_' || c == '-' || c == '+')){
+          return false;
+        }
+    } 
+    else if (email[i] == '@') {
         continue;
-    } else {
+    } 
+    else {
         if (!(isalnum(c) || c == '.' || c == '-')) return false;
     }
-}
-return true;
+  }
+  return true;
 }
 
 /**
-@brief 
-Check if the birthdate is valid.
+ * @brief Validates that a birthdate string conforms to the format "YYYY-MM-DD".
  *
- * This function checks if the provided birthdate is in a valid format (YYYY-MM-DD).
- * It ensures that the date is in the correct format and does not contain any invalid characters.
+ * This function does the following:
+ * - Check digit characters in the expected positions for year, month, and day.
+ * - Check it contains hyphens (`-`) in the 5th and 8th character positions (index 4 and 7).
+ * - Check that `BIRTHDATE_LENGTH` is exactly specified characters long and ends with null terminator.
  *
- * @param birthdate The birthdate to check.
- * @return true if the birthdate is valid, false otherwise.
+ * @note No range or logical validation (e.g., leap year, valid days/months) is performed.
+ *
+ * @param birthdate A null-terminated string representing the birthdate in the form "YYYY-MM-DD".
+ *
+ * @pre `birthdate` must not be NULL.
+ * @pre `BIRTHDATE_LENGTH` must equal 10 + 1 (for null byte) (i.e., the length of "YYYY-MM-DD\0").
+ *
+ * @post Returns true if the string matches the required birthdate pattern, otherwise, false.
+ *
+ * @return `true` if the birthdate string is in valid format; `false` if structure of email/other conditions are violated.
  */
 
 static bool check_birthdate(const char *birthdate){
@@ -102,14 +150,23 @@ static bool check_birthdate(const char *birthdate){
 }
 
 /**
- * @brief Checks if the password contains any dangerous characters that may lead to code injection.
- * 
- * TODO: UPDATE DOCUMENTATION BLOCK, Passwords must be minimum 12 length, uppercase, no illegal characters. 
- * Disallows control characters and common shell metacharacters such as: ; & | < > ` ' " \ $
+ * @brief Validates a user-provided password against defined set of desirable password properties.
  *
- * @param password_provided A null-terminated string containing the user's password.
- 
- * @return true if the password is safe, false if unsafe characters are found.
+ * This function does the following:
+ * - Enforce length of the password must be between `MIN_PW_LEN` and `MAX_PW_LEN` characters.
+ * - Enforce password to contain at least one uppercase letter, one lowercase letter, one digit, and one special character.
+ * - Enforce password to not contain blacklisted characters typically associated with injection attacks 
+ * (e.g., OS commands, SQL, XSS, path traversal).
+ * - Check and log for any errors (failures/success) for auditing and debugging purposes.
+ *
+ * @param password_provided A null-terminated string representing the user's input password.
+ *
+ * @pre `password_provided` must not be NULL or empty.
+ * @pre `MIN_PW_LEN` and `MAX_PW_LEN` must be properly defined.
+ *
+ * @post Returns `true` if the password passes all checks; otherwise, log an error and return false.
+ *
+ * @return `true` if the password is valid and secure according to the defined policy; `false` if any condition is violated.
  */
 
  static bool validate_password(const char *password_provided) {
@@ -165,14 +222,23 @@ static bool check_birthdate(const char *birthdate){
 }
 
 /**
- * @brief Checks if the password contains any dangerous characters that may lead to code injection.
- * 
- * TODO: UPDATE DOCUMENTATION BLOCK, Passwords must be minimum 12 length, uppercase, no illegal characters. 
- * Disallows control characters and common shell metacharacters such as: ; & | < > ` ' " \ $
+ * @brief Safely copies a string into a destination buffer with truncation protection.
  *
- * @param password_provided A null-terminated string containing the user's password.
- 
- * @return true if the password is safe, false if unsafe characters are found.
+ * This function does the following:
+ * - Use `snprintf()` to copy a source string (`src`) into a destination buffer (`dst`) to capture that the buffer did not overflow. 
+ * - Provide log errors if any has occured during the copying or if truncation occurs. 
+ *
+ * @param dst Pointer to the destination character buffer.
+ * @param dst_size The size of the destination buffer in bytes.
+ * @param src Null-terminated source string to copy from.
+ *
+ * @pre `dst` and `src` must not be NULL.
+ * @pre `dst_size` must be greater than 0.
+ * @pre acc struct defined length constraints must be properly declared and enforced.
+ *
+ * @post Return 'true' if `dst` will contain a completed null-terminated copy of `src`.
+ *
+ * @return `true` if the string was successfully copied without truncation; `false` if error occurs or truncation has happened.
  */
 
 static bool safe_str_copy(char *dst, size_t dst_size, const char *src) {
@@ -191,75 +257,95 @@ static bool safe_str_copy(char *dst, size_t dst_size, const char *src) {
   return true;
 }
 
-/*
-account_t *account_create(const char *userid, const char *plaintext_password, const char *email, const char *birthdate) {
-    if (!userid || !plaintext_password || !email || !birthdate) {
-        log_message(LOG_ERROR, "account_create: null argument");
-        return NULL;
-    }
-    size_t pw_len = strlen(plaintext_password);
-    if (pw_len < MIN_PW_LEN) {
-        log_message(LOG_ERROR, "account_create: password too short");
-        return NULL;
-    }
-    if (!check_email(email)) {
-        log_message(LOG_ERROR, "account_create: invalid email format");
-        return NULL;
-    }
-    if (!check_birthdate(birthdate)) {
-        log_message(LOG_ERROR, "account_create: invalid birthdate format");
-        return NULL;
-    }
-    if (!sodium_init()) {
-        log_message(LOG_ERROR, "account_create: libsodium init failed");
-        return NULL;
-    }
-    account_t *acc = calloc(1, sizeof(account_t));
-    if (!acc) {
-        log_message(LOG_ERROR, "account_create: allocation failed");
-        return NULL;
-    }
+/**
+ * @brief Converts a `time_t` value into a human-readable date-time string.
+ *
+ * This function does the following:
+ * - Format a given `time_t` value into the format "YYYY-MM-DD HH:MM:SS"
+ * - Stores the result in the provided output buffer using `safe_str_copy()`. 
+ * - Provide log errors if format of input failed or is invalid.  
+ *
+ * @param t The time value to be formatted.
+ * @param buffer A pointer to the output character buffer where the formatted string will be stored.
+ * @param len The length of the output buffer in bytes.
+ *
+ * @pre `buffer` must not be NULL and `len` must be greater than 0.
+ * @post On success, the `buffer` contains a null-terminated timestamp string. On failure, the `buffer` contains the string `"unavailable"`.
+ * 
+ * @return None.
+ */
 
-    acc->unban_time = 0;
-    acc->expiration_time = 0;
+static void format_time(time_t t, char *buffer, size_t len) {
+  if (!buffer || len == 0) {
+    return;
+  }
 
-    strncpy(acc->userid, userid,
-    USER_ID_LENGTH - 1);  // TODO: Use strcpy_s, strncpy (unsafe)
-    acc->userid[USER_ID_LENGTH - 1] = '\0';
-
-    if (crypto_pwhash_str(acc->password_hash, plaintext_password, pw_len,
-    crypto_pwhash_OPSLIMIT_INTERACTIVE,
-    crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
-        log_message(LOG_ERROR, "account_create: password hashing failed");
-        free(acc);
-        return NULL;
-    }
-
-    memset(acc->email, 0, EMAIL_LENGTH);
-    strncpy(acc->email, email,
-    EMAIL_LENGTH - 1);  // TODO: Use strcpy_s, strncpy (unsafe)
-
-    memcpy(acc->birthdate, birthdate,BIRTHDATE_LENGTH);  // TODO: Use memcpy_s, memcpy (unsafe)
-    acc->birthdate[BIRTHDATE_LENGTH] = '\0';
-    return acc;
+  struct tm *tm_info = localtime(&t);
+  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+      if (!safe_str_copy(buffer, len, "unavailable")) {
+          log_message(LOG_ERROR, "[format_time]: Failed to copy fallback string into buffer.\n");
+      }
+  }
 }
-*/
 
 /**
- * @brief Create a new account with the specified parameters.
+ * @brief Converts an IPv4 address into a human-readable dotted-decimal string.
  *
- * This function initializes a new dynamically allocated account structure
- * with the given user ID, hash information derived from the specified plaintext password, email address,
- * and birthdate. Other fields are set to their default values.
- * On success, returns a pointer to the newly created account structure.
- * On error, returns NULL and logs an error message.
+ * This function does the following:
+ *  attempts to convert a given `ip4_addr_t` address into a string representation
+ * (e.g., "192.168.1.1") using `inet_ntop()`. 
+ * - If conversion fails, it safely writes the fallback string `"unavailable"` into the buffer using `safe_str_copy()`. 
  *
- * @param userid The user ID for the new account.
- * @param plaintext_password The plaintext password for the new account.
- * @param email The email address for the new account.
- * @param birthdate The birthdate for the new account (format: YYYY-MM-DD).
+ * @param ip The IPv4 address to convert.
+ * @param buffer Pointer to the character buffer where the resulting string will be written.
+ * @param len The size of the destination buffer in bytes.
  *
- * @return A pointer to the newly created account structure, or NULL on error.
+ * @pre `buffer` must not be NULL.
+ * @pre `len` must be greater than 0.
+ *
+ * @post On success, `buffer` contains the null-terminated string form of the IP address. On failure, it contains the string `"unavailable"` if copying succeeds.
+ *
+ * @return None.
+ */
+
+static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
+  if (!buffer || len == 0) {
+      return;
+  }
+
+  if (!inet_ntop(AF_INET, &ip, buffer, len)) {
+    if (!safe_str_copy(buffer, len, "unavailable")) {
+        log_message(LOG_ERROR, "[format_ip]: Failed to copy fallback IP string.\n");
+    }
+  }
+}
+
+/**
+ * @brief Creates and initializes a new user account with validated and securely stored data.
+ *
+ * This function performs the following:
+ * - Validates all input parameters (user ID, password, email, and birthdate).
+ * - Enforces password security requirements.
+ * - Validates email and birthdate format.
+ * - Initializes Libsodium for cryptographic operations.
+ * - Allocates and populates a new `account_t` structure.
+ * - Hashes and converts plaintext_password to a hashed version using `crypto_pwhash_str()`.
+ * - Securely copies strings into fixed-size buffers with truncation protection.
+ *
+ * If any validation or operation fails, an error is logged and `NULL` is returned. 
+ *
+ * @param userid A null-terminated string representing the user ID.
+ * @param plaintext_password A null-terminated string representing the user's password in plaintext.
+ * @param email A null-terminated string representing the user's email address.
+ * @param birthdate A null-terminated string in "YYYY-MM-DD" format representing the user's birthdate.
+ *
+ * @pre All input pointers must be non-NULL.
+ * @pre `sodium_init()` must succeed before using Libsodium cryptographic functions.
+ * @pre Constants `USER_ID_LENGTH`, `MAX_PW_LEN`, `EMAIL_LENGTH`, and `BIRTHDATE_LENGTH` must be properly defined.
+ *
+ * @post On success, a heap-allocated `account_t` structure is returned, containing securely copied and hashed data. On failure, appropriate error is logged and null is returned.
+ *
+ * @return 'true' if pointer to a newly allocated and initialized `account_t` struct on success; 'false if `NULL` or any validation/operation fails.
  */
 
 account_t *account_create(const char *userid, const char *plaintext_password, const char *email, const char *birthdate) {
@@ -325,37 +411,52 @@ account_t *account_create(const char *userid, const char *plaintext_password, co
 }
 
 /**
-* @brief Free memory and resources used by the account.
-*
-* This function frees the memory allocated for the account structure and
-* wipes sensitive data before freeing.
-*
-* @param acc A pointer to the account structure to be freed.
-*/ 
+ * @brief Securely deallocates and wipes an `account_t` structure from memory.
+ *
+ * This function performs the following: 
+ * - Log successful access to the structure.
+ * - Securely erase its contents using `sodium_memzero()`.
+ * - Free the allocated memory.
+ *
+ *
+ * @param acc Pointer to the `account_t` structure to be securely freed.
+ *
+ * @pre `acc` must either be NULL or points to a valid `account_t` struct.
+ *
+ * @post If `acc` is non-NULL then its contents will be wiped securely and memory freed.
+ *
+ * @return None.
+ */
 
 void account_free(account_t *acc) {
   if (!acc){
-    return;
+    log_message(LOG_ERROR, "[account_free]: Failed to open account_t struct, it must not be NULL.\n");
   }
-
-  sodium_memzero(acc, sizeof *acc);
-
-  free(acc);
+  else{
+    log_message(LOG_ERROR, "[account_free]: Account struct found. Proceeding to securely erase data and free memory.\n");
+    sodium_memzero(acc, sizeof *acc);
+    free(acc);
+  }
 }
 
 /**
- * @brief Set the email address for the account.
+ * @brief Provide user function to updates the email field of an existing `account_t` structure.
  *
- * This function updates the email address of the account with the provided new email.
- * It performs input validation to ensure that the new email is in a valid format and does not exceed the maximum length.
+ * This function performs the following:
+ * - checks for null inputs
+ * - validates the format of the new email string using `check_email()`.
+ * - Once validated, securely copy it into acc->email to update new value.
  *
- * @param acc A pointer to the account structure.
- * @param new_email The new email address to set for the account.
+ * @param acc Pointer to the `account_t` structure whose email should be updated.
+ * @param new_email A null-terminated string representing the new email address.
  *
- * @pre 'acc' must be non-NULL.
- * @pre 'new_email' must be non-NULL and a valid null-terminated string.
+ * @pre `acc` and `new_email` must not be NULL.
+ * @pre `new_email` must pass format validation via `check_email()`.
+ * @pre `MAX_EMAIL_LEN` and `EMAIL_LENGTH` must be defined and consistent.
  *
- * @return void
+ * @post If validation succeeds, `acc->email` is updated with the new value; otherwise, the original email remains unchanged.
+ *
+ * @return None.
  */
 
 void account_set_email(account_t *acc, const char *new_email) {
@@ -372,31 +473,38 @@ void account_set_email(account_t *acc, const char *new_email) {
       log_message(LOG_ERROR,"[account_set_email]: Email too long");
       return;
   }
-  char new_buf[EMAIL_LENGTH];
-  memset(new_buf, 0, EMAIL_LENGTH); 
-  memcpy(new_buf, new_email, len + 1); //TODO: Use memmove(), memcpy (unsafe)
-  memcpy(acc->email, new_buf, EMAIL_LENGTH);  //TODO: Use memmove(), memcpy (unsafe)
+
+  if(!safe_str_copy(acc->email, EMAIL_LENGTH, new_email)) {
+    log_message(LOG_ERROR,"[account_set_email]: Failed to update email to due copy failure.\n");
+  }
+
+  log_message(LOG_INFO, "[account_set_email]: Email has been successfully updated.\n");
 }
 
 /**
- * @brief Verfies a users password against the stored hash.
+ * @brief Validates a user's plaintext password against the stored password hash.
  *
- * The function will validate the provided plaintext password agaisnt the stored password hash.
- * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str_verify) for password verification.
- * It performs input validation (for injections) and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
- * 
- * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
- * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
- * 
- * @pre 'acc' must be non-NULL.
- * @pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ * This function performs the following:
+ * - Check that Libsodium library (if not already initialized).
+ * - Check provided plaintext password meets password policy in `validate_password()`.
+ * - Locks memory for the password buffer using `sodium_mlock()` to prevent it from being swapped.
+ * - Securely copies the password into the locked buffer.
+ * - Verifies the password against the stored hash in the `account_t` structure using libsodium's - `crypto_pwhash_str_verify()`.
+ * - Cleans and unlocks the memory after verification.
+ * - Log all major events (failures/success) for auditing and debugging.
  *
- * @return Returns true or false.
- * 
- * @ref crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock() - Refer to https://doc.libsodium.org/password_hashing/default_phf
- * 
- * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
+ * @param acc Pointer to a valid `account_t` structure containing the stored password hash.
+ * @param plaintext_password A null-terminated string representing the user-provided password to validate.
+ *
+ * @pre `acc` and `plaintext_password` must not be NULL.
+ * @pre `sodium_init()` must succeed prior to cryptographic operations.
+ * @pre `plaintext_password` must pass internal policy checks via `validate_password()`.
+ *
+ * @post On success, securely unlocks and clears the password buffer and return `true`. On failure, record log error and reutrn `false`.
+ *
+ * @return `true` if the plaintext password matches the stored hash; otherwise, `false`.
  */
+
 
  bool account_validate_password(const account_t *acc, const char *plaintext_password) {
   if (sodium_init() < 0) {
@@ -439,24 +547,30 @@ void account_set_email(account_t *acc, const char *new_email) {
 }
 
 /**
- * @brief Updates the user's stored password hash with the new password provided
+ * @brief Updates the stored password hash in an `account_t` structure with a new plaintext password provided from user.
  *
- * The function will generate a new hash from the new password provided by user and update the stored password hash in account_t structure acc.
- * Using the account_t structure, with Libsodium package - Argon2 (crypto_pwhash_str) for password hash generation.
- * It performs input validation (for injections) and uses memory locking as an additional layer of security to minimise chance of memory dump exposure/attack. 
- * 
- * @param account_t A Pointer to an account_t structure which contains the  userid, email, plaintext password in hash format and birthdate
- * @param plaintext_password A pointer to the user's input of new password that needs to be securely hashed.
- * 
- * @pre 'acc' must be non-NULL.
- * @pre 'plaintext_password' must be non-NULL and a valid null-terminated string.
+ * This function performs the following:
+ * - Check new password meets defined security policies.
+ * - Locking memory using `sodium_mlock()` to protect the password buffer.
+ * - Copying the password into the secure buffer using `safe_str_copy()`.
+ * - Hashing the new plaintext password provided using `crypto_pwhash_str()`.
+ * - Clean and unlock memory to remove residual sensitive data.
+ * - Log all major events (failures/success) for auditing and debugging.
  *
- * @return Returns true or false.
- * 
- * @ref crypto_pwhash_str_verify(), sodium_mlock(), sodium_munlock() - Refer to https://doc.libsodium.org/password_hashing/default_phf
+ * @param acc Pointer to the `account_t` structure whose password will be updated.
+ * @param new_plaintext_password Null-terminated string representing the new user-provided password.
  *
- * @note If failure occurs like Libsodium initilisation or memory lock fails, the function will create a debug/log error and return false.
+ * @pre `acc` and `new_plaintext_password` must not be NULL.
+ * @pre `sodium_init()` must succeed before any cryptographic operations.
+ * @pre `new_plaintext_password` must pass internal validation via `validate_password()`.
+ *
+ * @post If successful, `acc->password_hash` is updated with the new securely hashed password.
+ *       The password buffer is securely wiped and unlocked regardless of outcome.
+ *
+ * @return `true` if the password was successfully updated and hashed; 
+ *         `false` if validation, memory protection, or hashing fails.
  */
+
 
  bool account_update_password(account_t *acc, const char *new_plaintext_password) {
   if (sodium_init() < 0) {
@@ -498,22 +612,26 @@ void account_set_email(account_t *acc, const char *new_email) {
 }
 
 /**
-* @brief Records a successful login attempt for a user account. //TODO: Add on the documentation block comments, remove the Covers:.... , provide more details on what this function does
-*
-* - Validates all input.
-* - Logs IP and time with user context.
-* - Resets failure counter securely.
-*
-* Covers: auditing (Lab 3), logging format (Lab 7), defensive programming.
-*/
-static void format_time(time_t t, char *buffer, size_t len) {
-  if (!buffer || len == 0) return;
-  struct tm *tm_info = localtime(&t);
-  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
-      strncpy(buffer, "unavailable", len - 1); //TODO: Use strcpy_s, strncpy (unsafe)
-      buffer[len - 1] = '\0';
-  }
-}
+ * @brief Records a successful login for a user account, updating metadata and logging the event.
+ *
+ * This function updates the given `account_t` structure to reflect a successful login event by:
+ * - Storing the current time in `last_login_time`.
+ * - Saving the provided IPv4 address to `last_ip`.
+ * - Resetting the `login_fail_count` to zero.
+ *
+ * It converts the IP address to a readable string using `inet_ntop()` and formats the timestamp using `format_time()`.
+ * If IP conversion fails, it falls back to the string `"unknown"` using `safe_str_copy()`. Errors and successes are
+ * logged to aid in debugging and auditing.
+ *
+ * @param acc Pointer to the `account_t` structure representing the authenticated user.
+ * @param ip  The IPv4 address (`ip4_addr_t`) from which the login occurred.
+ *
+ * @pre `acc` must not be NULL.
+ *
+ * @post The account's `last_login_time`, `last_ip`, and `login_fail_count` fields are updated. Log entries are provided to indicate the time and IP of the login event.
+ *
+ * @return None.
+ */
 
 void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   if (!acc) {
@@ -524,7 +642,9 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   char ip_str[INET_ADDRSTRLEN] = {0};
   if (!inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN)) {
       log_message(LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'.\n", acc->userid);
-      strncpy(ip_str, "unknown", sizeof(ip_str) - 1); //TODO: Use strcpy_s, strncpy (unsafe)
+      if (!safe_str_copy(ip_str, sizeof(ip_str), "unknown")) {
+          log_message(LOG_ERROR, "[account_record_login_success]: Failed to copy fallback IP string.\n");
+      }
   }
 
   char time_str[MAX_TIME_STR_LEN] = {0};
@@ -535,22 +655,24 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   acc->login_fail_count = 0;
 
   log_message(LOG_INFO,
-      "[account_record_login_success]: User '%s' successfully logged in from IP '%s' at '%s'.\n",
-      acc->userid, ip_str, time_str);
+    "[account_record_login_success]: User '%s' successfully logged in from IP '%s' at '%s'.\n",acc->userid, ip_str, time_str);
 }
 
 
 /**
- * @brief Records a failed login attempt for a user account.
+ * @brief Records a failed login attempt for the specified user account.
  *
- * Increments the login failure counter in the account struct, logs the failure,
- * and ensures the count does not exceed UINT_MAX to avoid overflow.
+ * This function increments the `login_fail_count` field in the given `account_t` structure.
+ * It also logs the failed attempt, including the user ID and current failure count.
+ * If the failure count has reached `UINT_MAX`, no further increment is performed and a warning is logged instead.
  *
- * @param acc Pointer to a valid account_t structure.
- * 
- * @note If acc is NULL, the function logs an error and exits early.
- * 
- * @covers Lab 3 (defensive programming), Lab 4 (safe integers), Lab 7 (secure logging).
+ * @param acc Pointer to the `account_t` structure associated with the login attempt.
+ *
+ * @pre `acc` must not be NULL.
+ *
+ * @post If `login_fail_count` is less than `UINT_MAX`, it is incremented by one. Log entry is created.
+ *
+ * @return None.
  */
 
  void account_record_login_failure(account_t *acc) {
@@ -565,23 +687,29 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   }
 
   acc->login_fail_count++;
-  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s'.\n",
-              acc->login_fail_count, acc->userid);
+
+  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s'.\n", acc->login_fail_count, acc->userid);
 }
 
-/**
- * Checks if the account is currently banned.
+ /**
+ * @brief Checks whether a user account is currently banned based on the unban timestamp.
  *
- * Compares the current system time to the account's unban time.
- * If unban_time is in the future, the account is considered banned.
+ * This function determines if an account is banned by comparing the current time with
+ * the `unban_time` field in the `account_t` structure:
+ * - If `unban_time` is 0, the account is considered not banned.
+ * - If the current time is not retrievable, the function conservatively returns `true`.
+ * - Otherwise, the function returns `true` if the unban time is still in the future.
  *
- * @param acc A pointer to the account_t structure, which contains the unban_time field indicating the ban expiration time.
- * 
- * @pre acc must be non-NULL.
  *
- * @return true if the account is banned, false otherwise.
+ * @param acc Pointer to the `account_t` structure to check.
+ *
+ * @pre `acc` must not be NULL.
+ *
+ * @post Logs the result of the ban check and returns the appropriate boolean value.
+ *
+ * @return `true` if the account is banned (i.e., `unban_time` is in the future), `false` if the account is NULL or the current time cannot be determined;
+ *         
  */
-
  bool account_is_banned(const account_t *acc) {
   if (acc == NULL) {
     log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer received, either account does not exist.\n");
@@ -603,20 +731,26 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
 }
 
 /**
- * Checks if the account is currently expired.
+ * @brief Determines whether a user account has expired based on the expiration timestamp.
  *
- * Compares the current system time to the account's expiration time.
- * If expiration_time is in the past, the account is considered expired.
+ * This function checks if the `expiration_time` field in the given `account_t` structure
+ * indicates that the account is no longer valid:
+ * - If `expiration_time` is 0, the account is considered non-expiring and active.
+ * - If the current system time cannot be retrieved, the function conservatively returns `true`.
+ * - Otherwise, it returns `true` if the expiration time is earlier than the current time.
  *
- * @param acc A pointer to the account_t structure, which contains the expiration_time field indicating the account's expiration time.
- * 
- * @pre acc must be non-NULL.
+ * Logging is performed to handle and report null account pointers and system time retrieval failures.
  *
- * @return true if the account is expired, false otherwise.
+ * @param acc Pointer to the `account_t` structure to check for expiration.
+ *
+ * @pre `acc` must not be NULL.
+ *
+ * @post Logs an error if the account pointer is NULL or if the current time cannot be retrieved.
+ *
+ * @return `true` if the account is expired, if the account is NULL, or if the current time is unavailable; `false` otherwise.
  */
 
 bool account_is_expired(const account_t *acc) {
-  // Reason: 
   if (acc == NULL) {
     log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received.\n");
     return true;
@@ -626,7 +760,6 @@ bool account_is_expired(const account_t *acc) {
     return false;
   }
 
-  // Reason: 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
       log_message(LOG_ERROR, "[account_is_expired]: Current time not available.\n");
@@ -637,13 +770,24 @@ bool account_is_expired(const account_t *acc) {
 }
 
 /**
- * Sets the account's unban time to the given duration.
+ * @brief Sets the unban time for a user account based on a duration from the current time.
  *
- * @param acc A pointer to the account_t structure.
- * @param t The number of seconds from now until the ban should expire.
+ * This function updates the `unban_time` field in the `account_t` structure as follows:
+ * - If `t == 0`, the ban is cleared (`unban_time` is set to 0).
+ * - If `t > 0`, it adds the duration `t` (in seconds) to the current system time.
+ * - If `t` exceeds `MAX_DURATION`, it is clamped to `MAX_DURATION` and a warning is logged.
  *
- * @pre acc must be non-NULL.
+ * @param acc Pointer to the `account_t` structure to update.
+ * @param t Duration in seconds to set as the remaining ban time. Use 0 to remove the ban.
+ *
+ * @pre `acc` must not be NULL.
+ * @pre `MAX_DURATION` must be defined.
+ *
+ * @post Updates `acc->unban_time` based on the specified duration and current time. 
+ *
+ * @return None.
  */
+
 void account_set_unban_time(account_t *acc, time_t t) {
   if (acc == NULL) {
     log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received.\n");
@@ -675,12 +819,22 @@ void account_set_unban_time(account_t *acc, time_t t) {
 }
 
 /**
- * Sets the account's expiration time to the given duration.
+ * @brief Sets the expiration time for a user account based on a duration from the current time.
  *
- * @param acc A pointer to the account_t structure.
- * @param t The number of seconds from now until the account should expire.
+ * This function sets the `expiration_time` field in the given `account_t` structure:
+ * - If `t == 0`, the account is set to never expire (`expiration_time` is set to 0).
+ * - If `t > 0`, it adds the duration `t` (in seconds) to the current time and sets it as the expiration time.
+ * - If `t > MAX_DURATION`, it is clamped to `MAX_DURATION` and a warning is logged.
  *
- * @pre acc must be non-NULL.
+ * @param acc Pointer to the `account_t` structure whose expiration time should be updated.
+ * @param t Duration in seconds from the current time after which the account should expire. Use 0 to disable expiration.
+ *
+ * @pre `acc` must not be NULL.
+ * @pre `MAX_DURATION` must be defined.
+ *
+ * @post If valid, updates `acc->expiration_time` based on the current time and duration. Otherwise, no change occurs.
+ *
+ * @return None.
  */
 
 void account_set_expiration_time(account_t *acc, time_t t) {
@@ -713,25 +867,7 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   }
 }
 
-/**
- * @brief Print a detailed summary of a user's account to the specified file descriptor. //TODO: Modify the documentation block. 
- *
- * - Includes user ID, email, birthdate, failures, last login IP/time.
- * - All write operations are protected.
- * - Logs result.
- *
- * Covers: structured output (Lab 3), robust I/O (Lab 5), test logging (Lab 7).
- */
- static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
-  if (!buffer || len == 0) return;
-  if (!inet_ntop(AF_INET, &ip, buffer, len)) {
-      strncpy(buffer, "unavailable", len - 1); //TODO: Use strcpy_s, strncpy (unsafe)
-      buffer[len - 1] = '\0';
-  }
-}
-
-
- bool account_print_summary(const account_t *acct, int fd) {
+bool account_print_summary(const account_t *acct, int fd) {
   if (!acct) {
       log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
       return false;
@@ -744,8 +880,6 @@ void account_set_expiration_time(account_t *acc, time_t t) {
 
   char line[MAX_LINE_LEN];
   ssize_t written;
-
-  //TODO: IF YOU WANT TO USE SNPRINTF, YOU HAVE TO CHECK THE RETURN VALUE IF IT"S INTENDED (SNPRINTF CAN CAUSE TRUNCATION OF CODE)
 
   snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid); 
   if ((written = write(fd, line, strlen(line))) < 0) return false;      //TODO: Use strnlen , strlen (unsafe)
