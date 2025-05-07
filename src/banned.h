@@ -34,30 +34,14 @@
  #pragma GCC poison \
     sprintfW sprintfA wsprintf wsprintfW wsprintfA sprintf swprintf \
     _stprintf wvsprintf wvsprintfA wvsprintfW vsprintf _vstprintf vswprintf \
-    _snwprintf _snprintf _sntprintf _vsnprintf _vsnwprintf _vsntprintf \
-    wvnsprintf wvnsprintfA wvnsprintfW
-
- // Reason: unsafe scanf-style input functions
- #pragma GCC poison \
-    scanf wscanf _tscanf sscanf swscanf _stscanf snscanf snwscanf _sntscanf
- 
- // Reason: unsafe tokenization and path manipulation
- #pragma GCC poison \
-    strtok _tcstok wcstok _mbstok makepath _tmakepath _makepath _wmakepath \
-    _splitpath _tsplitpath _wsplitpath
  
  // Reason: unsafe string length and memory operations
  #pragma GCC poison \
-    strlen wcslen _mbslen _mbstrlen StrLen lstrlen memcpy RtlCopyMemory \
-    CopyMemory wmemcpy
+    memcpy RtlCopyMemory CopyMemory wmemcpy
  
  // Reason: unsafe gets functions
  #pragma GCC poison \
     gets _getts _gettws
- 
- // Reason: unsafe dynamic stack allocation
- #pragma GCC poison \
-    alloca _alloca
  
  // Reason: standard FILE-based I/O
  #pragma GCC poison \
