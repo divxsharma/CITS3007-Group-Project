@@ -23,6 +23,8 @@ login_result_t handle_login(const char *userid, const char *password,
   //  Preperation: Setting the timeout for the session if the login is successful (Since it is a game, and people may play for the whole day as the most reasonable maximum single session time to expect)
   const int SESSION_TIMEOUT = 24 * 60 * 60; // 24 hours in seconds
 
+  (void)client_output_fd;
+  (void)log_fd;
 
   // Step 0: Check userid and password are not NULL
   if (userid == NULL) {
@@ -73,13 +75,13 @@ login_result_t handle_login(const char *userid, const char *password,
   log_message(LOG_INFO, "[handle_login] User %s @ %i logged in successfully", userid, client_ip);
   
   // Step 6: Populate the session data if successful
-  session->account_id = account.account_id;
+  session->account_id = (int)account.account_id; //added (int), to assume that database is less than 2 million users
   session->session_start = login_time;
   session->expiration_time = login_time + SESSION_TIMEOUT;
 
   // Step 7: Write appropriate messages to the client_output_fd file descriptor
   // Send success message to client
-  const char *success_message = "[handle_login] Login successful\n";
-  size_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
+  //const char *success_message = "[handle_login] Login successful\n";
+  //size_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
   return LOGIN_SUCCESS;
 }

@@ -17,6 +17,7 @@
 #include <stdbool.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <unistd.h>
 #include "banned.h"
 
 /**
@@ -112,12 +113,108 @@ static bool check_birthdate(const char *birthdate) {
  * @return A pointer to the newly created account structure, or NULL on error.
  */
 
-account_t *account_create(const char *userid, const char *plaintext_password,
-                          const char *email, const char *birthdate
-                      )
-              
-{
-  if (!userid || !plaintext_password || !email || !birthdate) {
+static void format_time(time_t t, char *buffer, size_t len) {
+  if (!buffer || len == 0) {
+    return;
+  }
+
+  struct tm *tm_info = localtime(&t);
+  if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
+      if (!safe_str_copy(buffer, len, "unavailable")) {
+          log_message(LOG_ERROR, "[format_time]: Failed to copy fallback string into buffer.\n");
+      }
+  }
+}
+
+/**
+ * @brief Converts an IPv4 address into a human-readable dotted-decimal string.
+ *
+ * This function does the following:
+ *  attempts to convert a given `ip4_addr_t` address into a string representation
+ * (e.g., "192.168.1.1") using `inet_ntop()`. 
+ * - If conversion fails, it safely writes the fallback string `"unavailable"` into the buffer using `safe_str_copy()`. 
+ *
+ * @param ip The IPv4 address to convert.
+ * @param buffer Pointer to the character buffer where the resulting string will be written.
+ * @param len The size of the destination buffer in bytes.
+ *
+ * @pre `buffer` must not be NULL.
+ * @pre `len` must be greater than 0.
+ *
+ * @post On success, `buffer` contains the null-terminated string form of the IP address. On failure, it contains the string `"unavailable"` if copying succeeds.
+ *
+ * @return None.
+ */
+
+static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
+  if (!buffer || len == 0) {
+      return;
+  }
+
+  if (!inet_ntop(AF_INET, &ip, buffer, (socklen_t)len)) {
+    if (!safe_str_copy(buffer, len, "unavailable")) {
+        log_message(LOG_ERROR, "[format_ip]: Failed to copy fallback IP string.\n");
+    }
+  }
+}
+
+//TODO: ADD DOCUMENTATION BLOCK 
+static bool safe_fd_printf(int fd, const char *fmt, ...) {
+  if (fd < 0 || !fmt) return false;
+
+  char buffer[MAX_LINE_LEN];
+  va_list args;
+  va_start(args, fmt);
+
+  int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+  va_end(args);
+
+  if (len < 0 || (size_t)len >= sizeof(buffer)) {
+      log_message(LOG_ERROR, "[safe_fd_printf]: Formatting error or output truncated.");
+      return false;
+  }
+
+  ssize_t written = write(fd, buffer, (size_t)len);
+  if (written < 0) {
+      log_message(LOG_ERROR, "[safe_fd_printf]: Write to fd failed: %s");
+      return false;
+  }
+
+  return true;
+}
+
+/**
+ * @brief Creates and initializes a new user account with validated and securely stored data.
+ *
+ * This function performs the following:
+ * - Validates all input parameters (user ID, password, email, and birthdate).
+ * - Enforces password security requirements.
+ * - Validates email and birthdate format.
+ * - Initializes Libsodium for cryptographic operations.
+ * - Allocates and populates a new `account_t` structure.
+ * - Hashes and converts plaintext_password to a hashed version using `crypto_pwhash_str()`.
+ * - Securely copies strings into fixed-size buffers with truncation protection.
+ *
+ * If any validation or operation fails, an error is logged and `NULL` is returned. 
+ *
+ * @param userid A null-terminated string representing the user ID.
+ * @param plaintext_password A null-terminated string representing the user's password in plaintext.
+ * @param email A null-terminated string representing the user's email address.
+ * @param birthdate A null-terminated string in "YYYY-MM-DD" format representing the user's birthdate.
+ *
+ * @pre All input pointers must be non-NULL.
+ * @pre `sodium_init()` must succeed before using Libsodium cryptographic functions.
+ * @pre Constants `USER_ID_LENGTH`, `MAX_PW_LEN`, `EMAIL_LENGTH`, and `BIRTHDATE_LENGTH` must be properly defined.
+ *
+ * @post On success, a heap-allocated `account_t` structure is returned, containing securely copied and hashed data. On failure, appropriate error is logged and null is returned.
+ *
+ * @return 'true' if pointer to a newly allocated and initialized `account_t` struct on success; 'false if `NULL` or any validation/operation fails.
+ */
+
+account_t *account_create(const char *userid, const char *plaintext_password, const char *email, const char *birthdate) {
+
+if (!userid || !plaintext_password || !email || !birthdate) {
     log_message( LOG_ERROR,"account_create: null argument");
     return NULL;
 }
@@ -629,5 +726,3 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
   return true;
 }
-
-
