@@ -320,6 +320,32 @@ static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
   }
 }
 
+//TODO: ADD DOCUMENTATION BLOCK 
+static bool safe_fd_printf(int fd, const char *fmt, ...) {
+  if (fd < 0 || !fmt) return false;
+
+  char buffer[MAX_LINE_LEN];
+  va_list args;
+  va_start(args, fmt);
+
+  int len = vsnprintf(buffer, sizeof(buffer), fmt, args);
+
+  va_end(args);
+
+  if (len < 0 || (size_t)len >= sizeof(buffer)) {
+      log_message(LOG_ERROR, "[safe_fd_printf]: Formatting error or output truncated.");
+      return false;
+  }
+
+  ssize_t written = write(fd, buffer, len);
+  if (written < 0) {
+      log_message(LOG_ERROR, "[safe_fd_printf]: Write to fd failed: %s");
+      return false;
+  }
+
+  return true;
+}
+
 /**
  * @brief Creates and initializes a new user account with validated and securely stored data.
  *
@@ -867,44 +893,62 @@ void account_set_expiration_time(account_t *acc, time_t t) {
   }
 }
 
+//TODO: Documentation block
+
 bool account_print_summary(const account_t *acct, int fd) {
-  if (!acct) {
+    if (!acct) {
       log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
       return false;
-  }
+    }
 
-  if (fd < 0) {
+    if (fd < 0) {
       log_message(LOG_ERROR, "[account_print_summary]: Invalid file descriptor.");
       return false;
-  }
+    }
 
-  char line[MAX_LINE_LEN];
-  ssize_t written;
+    if (!safe_fd_printf(fd, "=== Account Summary ===\n")) {
+      return false;
+    }
 
-  snprintf(line, sizeof(line), "User ID         : %s\n", acct->userid); 
-  if ((written = write(fd, line, strlen(line))) < 0) return false;      //TODO: Use strnlen , strlen (unsafe)
+    if (!safe_fd_printf(fd, "User ID: %s\n", acct->userid)) {
+      return false;
+    } 
 
-  snprintf(line, sizeof(line), "Email           : %s\n", acct->email);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;     //TODO: Use strnlen , strlen (unsafe)
+    if (!safe_fd_printf(fd, "Email: %s\n", acct->email)) {
+      return false;
+    }
 
-  snprintf(line, sizeof(line), "Birthdate       : %s\n", acct->birthdate); 
-  if ((written = write(fd, line, strlen(line))) < 0) return false;         //TODO: Use strnlen , strlen (unsafe)
+    if (!safe_fd_printf(fd, "Birthdate: %s\n", acct->birthdate)){
+      return false;
+    } 
 
-  snprintf(line, sizeof(line), "Login Failures  : %u\n", acct->login_fail_count);
-  if ((written = write(fd, line, strlen(line))) < 0) return false;                //TODO: Use strnlen , strlen (unsafe)
+    if (!safe_fd_printf(fd, "Login Failures: %u\n", acct->login_fail_count)) {
+      return false;
+    }
 
-  char ip_str[INET_ADDRSTRLEN] = "unavailable";
-  format_ip(acct->last_ip, ip_str, sizeof(ip_str));
-  snprintf(line, sizeof(line), "Last Login IP   : %s\n", ip_str); 
-  if ((written = write(fd, line, strlen(line))) < 0) return false; //TODO: Use strnlen , strlen (unsafe)
+    char ip_str[INET_ADDRSTRLEN] = "unavailable";
 
-  char time_str[MAX_TIME_STR_LEN] = "unavailable";
-  format_time(acct->last_login_time, time_str, sizeof(time_str));
-  snprintf(line, sizeof(line), "Last Login Time : %s\n", time_str); 
-  if ((written = write(fd, line, strlen(line))) < 0) return false;  //TODO: Use strnlen , strlen (unsafe)
+    format_ip(acct->last_ip, ip_str, sizeof(ip_str));
 
-  log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
-  return true;
+    if (!safe_fd_printf(fd, "Last Login I: %s\n", ip_str)) {
+      return false;
+    }
+
+    char time_str[MAX_TIME_STR_LEN] = "unavailable";
+
+    format_time(acct->last_login_time, time_str, sizeof(time_str));
+
+    if (!safe_fd_printf(fd, "Last Login Time: %s\n", time_str)){
+      return false;
+    }
+
+    if (!safe_fd_printf(fd, "=======================\n")){
+      return false;
+    }
+
+    log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
+
+    return true;
 }
 
 
