@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "stdint.h": "c",
+        "account.h": "c",
+        "stdbool.h": "c",
+        "time.h": "c",
+        "check.h": "c",
+        "db.h": "c"
+    }
+}
