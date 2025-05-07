@@ -65,7 +65,7 @@ static bool check_email(const char *email){
     return false;
   }
 
-  size_t len = strnlen(email, MAX_EMAIL_LEN); 
+  size_t len = strlen(email); 
 
   if (len ==0 || len >= EMAIL_LENGTH){
     return false;
@@ -176,7 +176,7 @@ static bool check_birthdate(const char *birthdate){
     return false;
   } 
     
-  size_t len = strnlen(password_provided, MAX_PW_LEN + 1);
+  size_t len = strlen(password_provided);
   
   if (len < MIN_PW_LEN || len > MAX_PW_LEN) {
     log_message(LOG_ERROR, "[validate_password]: Password must be between %d and %d characters.\n", MIN_PW_LEN, MAX_PW_LEN);
@@ -415,7 +415,7 @@ account_t *account_create(const char *userid, const char *plaintext_password, co
     return NULL;
   }
 
-  if (crypto_pwhash_str(acc->password_hash, plaintext_password, strnlen(plaintext_password, MAX_PW_LEN), OPSLIMIT, MEMLIMIT) != 0) {
+  if (crypto_pwhash_str(acc->password_hash, plaintext_password, strlen(plaintext_password), OPSLIMIT, MEMLIMIT) != 0) {
     log_message(LOG_ERROR, "[account_create]: Failed to securely hash password with crypto_pwhash_str().\n");
     account_free(acc);
     return NULL;
@@ -494,7 +494,7 @@ void account_set_email(account_t *acc, const char *new_email) {
       log_message( LOG_ERROR,"[account_set_email]: Invalid email format");
       return;
   }
-  size_t len = strnlen(new_email, MAX_EMAIL_LEN);
+  size_t len = strlen(new_email);
   if (len >= EMAIL_LENGTH) {
       log_message(LOG_ERROR,"[account_set_email]: Email too long");
       return;
@@ -556,7 +556,7 @@ void account_set_email(account_t *acc, const char *new_email) {
     return false;
   }
 
-  int result = crypto_pwhash_str_verify(acc->password_hash, secure_pw, strnlen(secure_pw, MAX_PW_LEN));
+  int result = crypto_pwhash_str_verify(acc->password_hash, secure_pw, strlen(secure_pw));
 
   sodium_munlock(secure_pw, sizeof(secure_pw));
   sodium_memzero(secure_pw, sizeof(secure_pw));
@@ -623,7 +623,7 @@ void account_set_email(account_t *acc, const char *new_email) {
       return false;
   }
 
-  int result = crypto_pwhash_str(acc->password_hash, new_secure_pw, strnlen(new_secure_pw, MAX_PW_LEN), OPSLIMIT, MEMLIMIT);
+  int result = crypto_pwhash_str(acc->password_hash, new_secure_pw, strlen(new_secure_pw), OPSLIMIT, MEMLIMIT);
 
   sodium_munlock(new_secure_pw, sizeof(new_secure_pw));
   sodium_memzero(new_secure_pw, sizeof(new_secure_pw));
