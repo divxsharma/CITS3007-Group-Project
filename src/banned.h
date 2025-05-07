@@ -1,3 +1,4 @@
+
 /**
  * @brief Banned C functions list for secure coding enforcement.
  *

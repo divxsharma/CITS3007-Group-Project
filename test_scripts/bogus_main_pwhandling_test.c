@@ -1,8 +1,7 @@
 #define TEST_USER "User1"
 #define TEST_EMAIL "user1@gmail.com"
 #define TEST_BIRTHDATE "1969-02-02"
-#define SET_PASSWORD "Bruhbruhbruh12!"
-#define TEST_PASSWORD "Thisisamalicioussqlinjection!12"
+#define TEST_PASSWORD "bruhbruhbruh"
 #define WRONG_PASSWORD "thispwwrongafbro"
 
 #include "account.h"
@@ -10,7 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <sodium.h>
-#include "banned.h"
 
 int main(void) {
     if (sodium_init() < 0) {
@@ -27,7 +25,7 @@ int main(void) {
     strncpy(acc.birthdate, TEST_BIRTHDATE , BIRTHDATE_LENGTH);
     acc.birthdate[BIRTHDATE_LENGTH - 1] = '\0';
 
-    if (!account_update_password(&acc, SET_PASSWORD)) {
+    if (!account_update_password(&acc, TEST_PASSWORD)) {
         log_message(LOG_ERROR, "Password hashing failed");
         return 1;
     }

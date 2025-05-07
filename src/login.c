@@ -49,7 +49,6 @@ login_result_t handle_login(const char *userid, const char *password,
   if (is_account_banned) {
     log_message(LOG_INFO, "[handle_login] Account %s is banned", userid);
     account_record_login_failure(&account);
-
     return LOGIN_FAIL_ACCOUNT_BANNED;
   }
   bool is_account_expired = account_is_expired(&account);
@@ -63,7 +62,6 @@ login_result_t handle_login(const char *userid, const char *password,
   if (account.login_fail_count > 10) {
     log_message(LOG_INFO, "[handle_login] Account %s has too many failed logins", userid);
     account_record_login_failure(&account);
-
     return LOGIN_FAIL_BAD_PASSWORD;
   }
   // Step 4: Check if the password is correct
@@ -83,9 +81,7 @@ login_result_t handle_login(const char *userid, const char *password,
 
   // Step 7: Write appropriate messages to the client_output_fd file descriptor
   // Send success message to client
-
-  // const char *success_message = "Login successful";
+  //const char *success_message = "[handle_login] Login successful\n";
   //size_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
-
   return LOGIN_SUCCESS;
 }
