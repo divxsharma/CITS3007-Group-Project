@@ -39,7 +39,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
-#include "banned.h"
 
 /**
  * @brief Validates an email address string.
@@ -313,7 +312,7 @@ static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
       return;
   }
 
-  if (!inet_ntop(AF_INET, &ip, buffer, len)) {
+  if (!inet_ntop(AF_INET, &ip, buffer, (socklen_t)len)) {
     if (!safe_str_copy(buffer, len, "unavailable")) {
         log_message(LOG_ERROR, "[format_ip]: Failed to copy fallback IP string.\n");
     }
@@ -337,7 +336,7 @@ static bool safe_fd_printf(int fd, const char *fmt, ...) {
       return false;
   }
 
-  ssize_t written = write(fd, buffer, len);
+  ssize_t written = write(fd, buffer, (size_t)len);
   if (written < 0) {
       log_message(LOG_ERROR, "[safe_fd_printf]: Write to fd failed: %s");
       return false;
