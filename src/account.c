@@ -970,7 +970,7 @@ bool account_print_summary(const account_t *acct, int fd) {
 
     format_ip(acct->last_ip, ip_str, sizeof(ip_str));
 
-    if (!safe_fd_printf(fd, "Last Login I: %s\n", ip_str)) {
+    if (!safe_fd_printf(fd, "Last Login IP: %s\n", ip_str)) {
     return false;
     }
 
