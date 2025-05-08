@@ -88,7 +88,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
         result->unban_time = 0;
         result->expiration_time = time(NULL) + 24*60*60;
         // Use the real password hashing function
-        account_update_password(result, "hashpass1");
+        account_update_password(result, "Hashpass1!");
         return true;
     }
 
@@ -98,7 +98,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
         result->unban_time = time(NULL) + 1e7; // Set a future unban time
         result->expiration_time = time(NULL) + 24*60*60;
         // Use the real password hashing function
-        account_update_password(result, "hashpass3");
+        account_update_password(result, "Hashpass3!");
         return true;
     }
 
@@ -108,7 +108,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
       result->unban_time = 0;
       result->expiration_time = time(NULL) - 24*60*60; // Set an expired account
       // Use the real password hashing function
-      account_update_password(result, "hashpass4");
+      account_update_password(result, "Hashpass4!");
       return true;
     }
 
@@ -119,7 +119,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
       result->login_fail_count = 11; // Set too many failed logins
       result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
       // Use the real password hashing function
-      account_update_password(result, "hashpass5");
+      account_update_password(result, "Hashpass5!");
       return true;
     }
 
@@ -129,7 +129,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
       result->unban_time = 0;
       result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
       // Use the real password hashing function
-      account_update_password(result, "hashpass6");
+      account_update_password(result, "Hashpass6!");
       return true;
     }
 
@@ -139,7 +139,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
       result->unban_time = 0;
       result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
       // Use the real password hashing function
-      account_update_password(result, "hashpass7");
+      account_update_password(result, "Hashpass7!");
       return true;
     }
 
@@ -150,7 +150,7 @@ bool account_lookup_by_userid(const char *userid, account_t *result) {
       result->login_fail_count = 10; // Set too many failed logins
       result->expiration_time = time(NULL) + 24*60*60; // Set an expired account
       // Use the real password hashing function
-      account_update_password(result, "hashpass9");
+      account_update_password(result, "Hashpass9!");
       return true;
     }
     return false;
@@ -166,7 +166,7 @@ START_TEST(test_handle_login_success) {
     time_t login_time = time(NULL);
     ip4_addr_t client_ip = {127001}; // Localhost IP
     log_message(LOG_INFO, "[TEST] Testing successful login for user: test1");
-    login_result_t result = handle_login("test1", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+    login_result_t result = handle_login("test1", "Hashpass1!", client_ip, login_time, client_output_fd, log_fd, &session);
     log_message(LOG_INFO, "[TEST] Login result: %d", result);
     ck_assert_int_eq(result, LOGIN_SUCCESS);
     ck_assert_int_eq(session.session_start, login_time); 
@@ -183,7 +183,7 @@ START_TEST(test_handle_login_user_not_found) {
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing Unsuccessful user not found login for user: test2");
-  login_result_t result = handle_login("test2", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login("test2", "Hashpass1!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_USER_NOT_FOUND);
   // ck_assert_int_eq(session.session_start, login_time); // Removed because early return is expected.
@@ -201,7 +201,7 @@ START_TEST(test_handle_login_user_banned) {
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing banned user login: test3");
-  login_result_t result = handle_login("test3", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login("test3", "Hashpass3!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_ACCOUNT_BANNED);
 } END_TEST
@@ -217,7 +217,7 @@ START_TEST(test_handle_login_user_expired) {
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing expired user login: test4");
-  login_result_t result = handle_login("test4", "hashpass1", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login("test4", "Hashpass4!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_ACCOUNT_EXPIRED);
 } END_TEST
@@ -233,7 +233,7 @@ START_TEST(test_handle_login_user_too_many_failed_logins) {
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing too many fails user login: test5");
-  login_result_t result = handle_login("test5", "hashpass5", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login("test5", "Hashpass5!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_BAD_PASSWORD);
 } END_TEST
@@ -281,7 +281,7 @@ START_TEST(test_handle_login_null_username_correct_password) {
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing correct username incorrect password user login: test7");
-  login_result_t result = handle_login(NULL, "hashpass6", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login(NULL, "Hashpass6!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_FAIL_USER_NOT_FOUND);
 } END_TEST
@@ -298,7 +298,7 @@ START_TEST(test_handle_login_correct_username_correct_password_exactly_10_prior_
   time_t login_time = time(NULL);
   ip4_addr_t client_ip = {127001}; // Localhost IP
   log_message(LOG_INFO, "[TEST] Testing correct username and password but with 10 prior failed attempts user login: test7");
-  login_result_t result = handle_login("test9", "hashpass9", client_ip, login_time, client_output_fd, log_fd, &session);
+  login_result_t result = handle_login("test9", "Hashpass9!", client_ip, login_time, client_output_fd, log_fd, &session);
   log_message(LOG_INFO, "[TEST] Login result: %d", result);
   ck_assert_int_eq(result, LOGIN_SUCCESS);
 } END_TEST

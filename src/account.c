@@ -39,6 +39,8 @@
  #include <string.h>
  #include <ctype.h>
  #include <unistd.h>
+ #include <errno.h>
+#include "banned.h"
  
  /**
   * @brief Validates an email address string.
@@ -319,7 +321,24 @@
    }
  }
  
- //TODO: ADD DOCUMENTATION BLOCK 
+/**
+ * @brief Safely writes a formatted string to the specified file descriptor.
+ *
+ * This function performs a `vsnprintf()` into a temporary buffer and then attempts
+ * to `write()` the result to the given file descriptor. It ensures the output does
+ * not exceed the buffer size and logs errors in case of truncation or write failure.
+ *
+ * @param fd File descriptor to which the output should be written.
+ * @param fmt A format string as in `printf`.
+ * @param ... Additional arguments matching the format string.
+ *
+ * @pre `fd` must be a valid writable file descriptor (>= 0).
+ * @pre `fmt` must not be NULL.
+ *
+ * @post On success, the formatted output is written to `fd`. On failure, an error is logged.
+ *
+ * @return `true` if the output was written successfully; `false` on formatting or write failure.
+ */
  static bool safe_fd_printf(int fd, const char *fmt, ...) {
    if (fd < 0 || !fmt) return false;
  
@@ -338,7 +357,7 @@
  
    ssize_t written = write(fd, buffer, len);
    if (written < 0) {
-       log_message(LOG_ERROR, "[safe_fd_printf]: Write to fd failed: %s");
+       log_message(LOG_ERROR, "[safe_fd_printf]: Write to fd failed: %s", strerror(errno));
        return false;
    }
  
@@ -678,6 +697,7 @@
    acc->last_ip = ip;
    acc->last_login_time = time(NULL);
    acc->login_fail_count = 0;
+   acc->login_count++; 
  
    log_message(LOG_INFO,
      "[account_record_login_success]: User '%s' successfully logged in from IP '%s' at '%s'.\n",acc->userid, ip_str, time_str);
@@ -892,60 +912,81 @@
    }
  }
  
- //TODO: Documentation block
- 
- bool account_print_summary(const account_t *acct, int fd) {
-     if (!acct) {
-       log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
-       return false;
-     }
- 
-     if (fd < 0) {
-       log_message(LOG_ERROR, "[account_print_summary]: Invalid file descriptor.");
-       return false;
-     }
- 
-     if (!safe_fd_printf(fd, "=== Account Summary ===\n")) {
-       return false;
-     }
- 
-     if (!safe_fd_printf(fd, "User ID: %s\n", acct->userid)) {
-       return false;
-     } 
- 
-     if (!safe_fd_printf(fd, "Email: %s\n", acct->email)) {
-       return false;
-     }
- 
-     if (!safe_fd_printf(fd, "Birthdate: %s\n", acct->birthdate)){
-       return false;
-     } 
- 
-     if (!safe_fd_printf(fd, "Login Failures: %u\n", acct->login_fail_count)) {
-       return false;
-     }
- 
-     char ip_str[INET_ADDRSTRLEN] = "unavailable";
- 
-     format_ip(acct->last_ip, ip_str, sizeof(ip_str));
- 
-     if (!safe_fd_printf(fd, "Last Login I: %s\n", ip_str)) {
-       return false;
-     }
- 
-     char time_str[MAX_TIME_STR_LEN] = "unavailable";
- 
-     format_time(acct->last_login_time, time_str, sizeof(time_str));
- 
-     if (!safe_fd_printf(fd, "Last Login Time: %s\n", time_str)){
-       return false;
-     }
- 
-     if (!safe_fd_printf(fd, "=======================\n")){
-       return false;
-     }
- 
-     log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
- 
-     return true;
- }
+/**
+ * @brief Prints a summary of the given account to the specified file descriptor.
+ *
+ * This function formats key account information such as user ID, email, birthdate,
+ * login statistics, IP address, and last login time. It writes the summary to a file
+ * descriptor (e.g., a pipe or file) using `safe_fd_printf()`. If any write fails,
+ * the function returns `false` to indicate failure.
+ *
+ * @param acct Pointer to the `account_t` structure to summarize.
+ * @param fd A writable file descriptor where the summary should be printed.
+ *
+ * @pre `acct` must not be NULL.
+ * @pre `fd` must be a valid writable file descriptor.
+ *
+ * @post If successful, writes the formatted summary to the output. Logs success or any failures.
+ *
+ * @return `true` if the summary was printed successfully; `false` on any formatting or write error.
+ */
+bool account_print_summary(const account_t *acct, int fd) {
+    if (!acct) {
+    log_message(LOG_ERROR, "[account_print_summary]: NULL account pointer.");
+    return false;
+    }
+
+    if (fd < 0) {
+    log_message(LOG_ERROR, "[account_print_summary]: Invalid file descriptor.");
+    return false;
+    }
+
+    if (!safe_fd_printf(fd, "=== Account Summary ===\n")) {
+    return false;
+    }
+
+    if (!safe_fd_printf(fd, "User ID: %s\n", acct->userid)) {
+    return false;
+    } 
+
+    if (!safe_fd_printf(fd, "Email: %s\n", acct->email)) {
+    return false;
+    }
+
+    if (!safe_fd_printf(fd, "Birthdate: %s\n", acct->birthdate)){
+    return false;
+    } 
+
+    if (!safe_fd_printf(fd, "Login Failures: %u\n", acct->login_fail_count)) {
+    return false;
+    }
+
+    if (!safe_fd_printf(fd, "Login Successes: %u\n", acct->login_count)) {
+    return false;
+}
+
+
+    char ip_str[INET_ADDRSTRLEN] = "unavailable";
+
+    format_ip(acct->last_ip, ip_str, sizeof(ip_str));
+
+    if (!safe_fd_printf(fd, "Last Login I: %s\n", ip_str)) {
+    return false;
+    }
+
+    char time_str[MAX_TIME_STR_LEN] = "unavailable";
+
+    format_time(acct->last_login_time, time_str, sizeof(time_str));
+
+    if (!safe_fd_printf(fd, "Last Login Time: %s\n", time_str)){
+    return false;
+    }
+
+    if (!safe_fd_printf(fd, "=======================\n")){
+    return false;
+    }
+
+    log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
+
+    return true;
+}
