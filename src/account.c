@@ -425,12 +425,14 @@
      account_free(acc);
      return NULL;
    }
- 
-   if (!safe_str_copy(acc->birthdate,BIRTHDATE_LENGTH, birthdate)) {
-     log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided birthdate string into acc struct.\n");
+   
+   //  Switched to memcpy() here to avoid truncation issues with safe_str_copy()
+   if (strlen(birthdate) != BIRTHDATE_LENGTH) {
+     log_message(LOG_ERROR, "[account_create]: Birthdate must be exactly %d characters.\n", BIRTHDATE_LENGTH);
      account_free(acc);
      return NULL;
    }
+   memcpy(acc->birthdate, birthdate, BIRTHDATE_LENGTH);
  
    return acc;
  }
