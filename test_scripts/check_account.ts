@@ -8,8 +8,9 @@
 #include <assert.h>
 #include <stdbool.h>
 
-#include "account.h"
-
+#include "../src/account.h"
+// Build command = gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -o check_account test_scripts/check_account.c src/account.c src/stubs.c -lcheck -pthread -lm -lrt -lsubunit -lsodium
+// Run command = ./test_scripts/check_account
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 #suite account_suite
@@ -20,7 +21,7 @@
 
   const char* userid = "someuser";
   const char* email = "foo@bar.com";
-  const char* plaintext_password = "password123";
+  const char* plaintext_password = "Str0ng!Pass1";
   const char* birthdate = "1900-01-01";
 
   account_t *res = account_create(userid, plaintext_password,
@@ -45,7 +46,7 @@
 
   account_t acc = { 0 };
 
-  const char* plaintext_password = "password123";
+  const char* plaintext_password = "Str0ng!Pass1";
 
   bool res = account_update_password(&acc, plaintext_password);
 
@@ -64,7 +65,7 @@
 
   account_t acc = { 0 };
 
-  const char* plaintext_password = "password123";
+  const char* plaintext_password = "Str0ng!Pass1";
 
   bool res = account_update_password(&acc, plaintext_password);
 
@@ -75,3 +76,29 @@
   ck_assert_int_eq(res, 1);
 
 // vim: syntax=c :
+#test test_account_update_account_old_password_neq_hash
+
+  account_t acc = { 0 };
+
+  const char* plaintext_password = "Str0ng!Pass1";
+
+  // Now update and extract the initial password hash for the first update:
+  bool update1 = account_update_password(&acc, plaintext_password);
+
+  ck_assert_int_eq(update1, 1);
+
+  char copy_of_hash1[HASH_LENGTH + 1 ] = { 0 };
+
+  memcpy(copy_of_hash1, acc.password_hash, HASH_LENGTH);
+
+  // Now update the password again but with the same plaintext password, then assert that the hash is different:
+  bool update2 = account_update_password(&acc, plaintext_password);
+
+  ck_assert_int_eq(update2, 1);
+
+  char copy_of_hash2[HASH_LENGTH + 1 ] = { 0 };
+
+  memcpy(copy_of_hash2, acc.password_hash, HASH_LENGTH);
+
+  // Check that the two hashes are different
+  ck_assert_str_ne(copy_of_hash1, copy_of_hash2);
