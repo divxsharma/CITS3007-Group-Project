@@ -15,8 +15,11 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <arpa/inet.h>
+
 
 #include "../src/account.h"
+#include "../src/banned.h"
 // Build command = gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -o check_account test_scripts/check_account.c src/account.c src/stubs.c -lcheck -pthread -lm -lrt -lsubunit -lsodium
 // Run command = ./test_scripts/check_account
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -25,7 +28,7 @@
 
 START_TEST(test_account_create_works)
 {
-#line 21
+#line 24
 
   const char* userid = "someuser";
   const char* email = "foo@bar.com";
@@ -53,7 +56,7 @@ END_TEST
 
 START_TEST(test_account_update_password_neq_plaintext)
 {
-#line 46
+#line 49
 
   account_t acc = { 0 };
 
@@ -77,7 +80,7 @@ END_TEST
 
 START_TEST(test_account_validate_password_ok)
 {
-#line 65
+#line 68
 
   account_t acc = { 0 };
 
@@ -97,7 +100,7 @@ END_TEST
 
 START_TEST(test_account_update_account_old_password_neq_hash)
 {
-#line 80
+#line 83
 
   account_t acc = { 0 };
 
@@ -123,6 +126,72 @@ START_TEST(test_account_update_account_old_password_neq_hash)
 
   // Check that the two hashes are different
   ck_assert_str_ne(copy_of_hash1, copy_of_hash2);
+
+}
+END_TEST
+START_TEST(test_account_create_null_args)
+{
+#line 111
+  ck_assert_ptr_eq(account_create(NULL,"Pwd1!","a@b.com","2000-01-01"), NULL);
+  ck_assert_ptr_eq(account_create("u",NULL,"a@b.com","2000-01-01"), NULL);
+  ck_assert_ptr_eq(account_create("u","Pwd1!",NULL,"2000-01-01"), NULL);
+  ck_assert_ptr_eq(account_create("u","Pwd1!","a@b.com",NULL), NULL);
+
+}
+END_TEST
+
+START_TEST(test_account_set_email_happy)
+{
+#line 117
+  account_t *a=account_create("u","Strong1!","old@e.com","2000-01-01");
+  ck_assert_ptr_ne(a,NULL);
+  account_set_email(a,"new@e.com");
+  ck_assert_str_eq(a->email,"new@e.com");
+  account_free(a);
+
+}
+END_TEST
+
+START_TEST(test_account_set_email_invalid)
+{
+#line 124
+  account_t *a2=account_create("u","Strong1!","good@e.com","2000-01-01");
+  const char *prev=a2->email;
+  account_set_email(a2,"bad-email");
+  ck_assert_str_eq(a2->email,prev);
+  account_free(a2);
+
+}
+END_TEST
+
+START_TEST(test_account_ban_and_expire)
+{
+#line 131
+  account_t acc={0};
+  ck_assert_int_eq(account_is_banned(&acc), false);
+  account_set_unban_time(&acc, 1);
+  ck_assert_int_eq(account_is_banned(&acc), true);
+  account_set_unban_time(&acc, 0);
+  ck_assert_int_eq(account_is_banned(&acc), false);
+
+  ck_assert_int_eq(account_is_expired(&acc), false);
+  account_set_expiration_time(&acc,1);
+  ck_assert_int_eq(account_is_expired(&acc), false);
+  acc.expiration_time = time(NULL)-1;
+  ck_assert_int_eq(account_is_expired(&acc), true);
+
+}
+END_TEST
+
+START_TEST(test_account_record_login)
+{
+#line 145
+  account_t accL={0};
+  accL.login_fail_count=5;
+  account_record_login_success(&accL,INADDR_LOOPBACK);
+  ck_assert_int_eq(accL.login_fail_count,0);
+  ck_assert(accL.last_login_time>0);
+
 }
 END_TEST
 
@@ -131,6 +200,7 @@ int main(void)
     Suite *s1 = suite_create("account_suite");
     TCase *tc1_1 = tcase_create("account_create_test_case");
     TCase *tc1_2 = tcase_create("account_update_password_test_case");
+    TCase *tc1_3 = tcase_create("api_misc");
     SRunner *sr = srunner_create(s1);
     int nf;
 
@@ -140,6 +210,12 @@ int main(void)
     tcase_add_test(tc1_2, test_account_update_password_neq_plaintext);
     tcase_add_test(tc1_2, test_account_validate_password_ok);
     tcase_add_test(tc1_2, test_account_update_account_old_password_neq_hash);
+    suite_add_tcase(s1, tc1_3);
+    tcase_add_test(tc1_3, test_account_create_null_args);
+    tcase_add_test(tc1_3, test_account_set_email_happy);
+    tcase_add_test(tc1_3, test_account_set_email_invalid);
+    tcase_add_test(tc1_3, test_account_ban_and_expire);
+    tcase_add_test(tc1_3, test_account_record_login);
 
     srunner_run_all(sr, CK_ENV);
     nf = srunner_ntests_failed(sr);
