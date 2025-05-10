@@ -14,6 +14,7 @@
 #include <string.h>
 #include <assert.h>
 #include <stdbool.h>
+
 #include <time.h>
 #include <arpa/inet.h>
 
@@ -23,6 +24,7 @@
 #define TEST_MIN_PW_LEN   8          /* MIN_PASSWORD_LENGTH */
 #define TEST_MAX_PW_LEN   128        /* MAX_PW_LEN          */
 #define TEST_MAX_DURATION 31536000   /* MAX_DURATION (1 year) */
+
 // Build command = gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -o check_account test_scripts/check_account.c src/account.c src/stubs.c -lcheck -pthread -lm -lrt -lsubunit -lsodium
 // Run command = ./test_scripts/check_account
 #define ARR_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
@@ -61,6 +63,7 @@ START_TEST(test_account_update_password_neq_plaintext)
 {
 #line 52
 
+
   account_t acc = { 0 };
 
   const char* plaintext_password = "Str0ng!Pass1";
@@ -85,6 +88,7 @@ START_TEST(test_account_validate_password_ok)
 {
 #line 71
 
+
   account_t acc = { 0 };
 
   const char* plaintext_password = "Str0ng!Pass1";
@@ -104,6 +108,7 @@ END_TEST
 START_TEST(test_account_update_account_old_password_neq_hash)
 {
 #line 86
+
 
   account_t acc = { 0 };
 
@@ -129,6 +134,7 @@ START_TEST(test_account_update_account_old_password_neq_hash)
 
   // Check that the two hashes are different
   ck_assert_str_ne(copy_of_hash1, copy_of_hash2);
+
 
 /*   account_create() edge cases   */
 }
