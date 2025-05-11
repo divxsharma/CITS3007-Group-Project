@@ -872,6 +872,7 @@ void account_record_login_failure(account_t *acc) {
   }
 
   acc->login_fail_count++;
+  acc->login_count = 0;
 
   log_message(LOG_INFO,
               "[account_record_login_failure]: Failure #%u for user '%s'.\n",
