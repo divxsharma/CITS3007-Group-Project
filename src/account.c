@@ -39,7 +39,6 @@
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
-#include "banned.h"
 
 /**
  * @brief Validates an email address string.
