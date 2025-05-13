@@ -78,6 +78,10 @@ login_result_t handle_login(const char *userid, const char *password, ip4_addr_t
     log_message(LOG_INFO, "[handle_login] password is NULL");
     return LOGIN_FAIL_BAD_PASSWORD;
   }
+  if (session == NULL) {
+    log_message(LOG_ERROR, "[handle_login] session is NULL");
+    return LOGIN_FAIL_INTERNAL_ERROR;
+  }
 
   account_t account = {0};
   bool account_exists  = account_lookup_by_userid(userid, &account);
@@ -107,10 +111,12 @@ login_result_t handle_login(const char *userid, const char *password, ip4_addr_t
 
   bool password_correct = account_validate_password(&account, password);
   if (!password_correct) {
+    account_record_login_failure(&account);
     log_message(LOG_INFO, "[handle_login] Incorrect password for user %s", userid);
     return LOGIN_FAIL_BAD_PASSWORD;
   }
   
+  account_record_login_success(&account, client_ip);
   log_message(LOG_INFO, "[handle_login] User %s @ %i logged in successfully", userid, client_ip);
   
   session->account_id = (int)account.account_id; 
@@ -118,6 +124,11 @@ login_result_t handle_login(const char *userid, const char *password, ip4_addr_t
   session->expiration_time = login_time + SESSION_TIMEOUT;
 
   const char *success_message = "[handle_login]: Login successful.\n";
-  write(client_output_fd, success_message, strlen(success_message));
+  
+  ssize_t bytes_written = write(client_output_fd, success_message, strlen(success_message));
+  if (bytes_written < 0) {
+    log_message(LOG_WARN, "[handle_login] Failed to write to client_output_fd for user %s", userid);
+  }
+
   return LOGIN_SUCCESS;
 }
