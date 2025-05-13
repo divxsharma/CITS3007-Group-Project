@@ -1,0 +1,34 @@
+name: All Functionality check
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y check libsodium-dev checkmk
+
+    - name: Generate test source from check_all.ts
+      run: checkmk test_scripts/check_all.ts > test_scripts/check_all.c
+
+    - name: Build tests
+      run: |
+        gcc -Wall -Wextra -Werror -pedantic -std=c11 -g -pthread \
+        -o test_scripts/check_all \
+        test_scripts/check_all.c \
+        src/account.c src/login.c src/logging.h \
+        -lcheck -lsodium -lsubunit -lm -lrt -pthread
+
+    - name: Run tests
+      run: ./test_scripts/check_all
