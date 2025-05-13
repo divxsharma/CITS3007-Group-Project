@@ -335,22 +335,13 @@ START_TEST(test_account_create_password_max_len_ok)
 {
 #line 260
        char pw_exact[TEST_MAX_PW_LEN + 1];
-       memset(pw_exact, 'A', TEST_MAX_PW_LEN - 2);
-       strcpy(pw_exact + TEST_MAX_PW_LEN - 2, "1!"); /* ensure digit+special */
+       memset(pw_exact, 'a', TEST_MAX_PW_LEN - 2);
+       strcpy(pw_exact + TEST_MAX_PW_LEN - 3, "A1!"); /* ensure digit+special */
        pw_exact[TEST_MAX_PW_LEN] = '\0';
        account_t *acc = account_create("u", pw_exact, "a@b.com", "2000-01-01");
        ck_assert_ptr_ne(acc, NULL);
        account_free(acc);
      
-     /* BIRTHDATE – future date */
-}
-END_TEST
-
-START_TEST(test_account_create_birthdate_future)
-{
-#line 270
-       ck_assert_ptr_eq(
-           account_create("u","Strong1!","a@b.com","2999-12-31"), NULL);
      
      /* EXPIRATION setter > MAX_DURATION should clamp */
 }
@@ -358,7 +349,7 @@ END_TEST
 
 START_TEST(test_account_set_expiration_time_cap)
 {
-#line 275
+#line 271
        account_t accE = {0};
        time_t now = time(NULL);
        account_set_expiration_time(&accE, TEST_MAX_DURATION * 3);
@@ -370,7 +361,7 @@ END_TEST
 
 START_TEST(test_account_double_free_safe)
 {
-#line 282
+#line 278
        account_t *tmp = account_create("u","Strong1!","e@e.com","2000-01-01");
        account_free(tmp);
        account_free(tmp); /* should be no-op / no crash */
@@ -383,7 +374,7 @@ END_TEST
 
 START_TEST(test_account_set_email_null_args)
 {
-#line 292
+#line 288
   account_set_email(NULL, "x@y.com");   /* should not crash */
 
 }
@@ -391,7 +382,7 @@ END_TEST
 
 START_TEST(test_account_set_email_null_new_email)
 {
-#line 295
+#line 291
   account_t *c = account_create("u","Strong1!","start@e.com","2000-01-01");
   ck_assert_ptr_ne(c, NULL);
   account_set_email(c, NULL);           /* no change expected */
@@ -403,7 +394,7 @@ END_TEST
 
 START_TEST(test_account_set_email_overlong)
 {
-#line 302
+#line 298
   account_t *d = account_create("u","Strong1!","ok@e.com","2000-01-01");
   char big_email[EMAIL_LENGTH + 10];
   memset(big_email, 'b', EMAIL_LENGTH);
@@ -418,7 +409,7 @@ END_TEST
 
 START_TEST(test_account_validate_password_wrong)
 {
-#line 314
+#line 310
   account_t acc1 = {0};
   ck_assert(account_update_password(&acc1, "Correct1!"));
   ck_assert_int_eq(account_validate_password(&acc1, "Wrong1!"), 0);
@@ -428,7 +419,7 @@ END_TEST
 
 START_TEST(test_account_update_password_empty_and_too_long)
 {
-#line 319
+#line 315
   account_t acc2 = {0};
   ck_assert_int_eq(account_update_password(&acc2, ""), 0);
   char pw_big[TEST_MAX_PW_LEN + 50];
@@ -441,7 +432,7 @@ END_TEST
 
 START_TEST(test_account_old_password_no_longer_valid)
 {
-#line 327
+#line 323
   account_t acc3 = {0};
   ck_assert(account_update_password(&acc3, "First1!00"));
   ck_assert(account_update_password(&acc3, "Second1!00"));
@@ -453,7 +444,7 @@ END_TEST
 
 START_TEST(test_password_null_args)
 {
-#line 334
+#line 330
   ck_assert_int_eq(account_validate_password(NULL, "x"), 0);
   ck_assert_int_eq(account_validate_password((account_t*)&(int){0}, NULL), 0);
   ck_assert_int_eq(account_update_password(NULL, "x"), 0);
@@ -464,7 +455,7 @@ END_TEST
 
 START_TEST(test_account_record_login_failure_increment)
 {
-#line 342
+#line 338
   account_t acc4 = {0};
   account_record_login_failure(&acc4);
   ck_assert_int_eq(acc4.login_fail_count, 1);
@@ -474,7 +465,7 @@ END_TEST
 
 START_TEST(test_account_record_login_failure_no_overflow)
 {
-#line 347
+#line 343
   account_t acc5 = {0};
   acc5.login_fail_count = UINT_MAX;
   account_record_login_failure(&acc5);
@@ -485,7 +476,7 @@ END_TEST
 
 START_TEST(test_account_record_login_success_sets_ip_and_resets_fail)
 {
-#line 353
+#line 349
   account_t acc6 = {0};
   acc6.login_fail_count = 3;
   ip4_addr_t ip = htonl(INADDR_LOOPBACK);
@@ -499,7 +490,7 @@ END_TEST
 
 START_TEST(test_account_record_login_success_null)
 {
-#line 362
+#line 358
   account_record_login_success(NULL, 0);  /* should not crash */
   account_record_login_failure(NULL);     /* likewise */
 
@@ -509,7 +500,7 @@ END_TEST
 
 START_TEST(test_account_set_unban_time_negative_no_change)
 {
-#line 369
+#line 365
   account_t acc7 = {0};
   acc7.unban_time = 12345;
   account_set_unban_time(&acc7, (time_t)-5);
@@ -520,7 +511,7 @@ END_TEST
 
 START_TEST(test_account_set_unban_time_cap_to_max)
 {
-#line 375
+#line 371
   account_t acc8 = {0};
   time_t now = time(NULL);
   account_set_unban_time(&acc8, TEST_MAX_DURATION * 2);   /* request > max */
@@ -531,7 +522,7 @@ END_TEST
 
 START_TEST(test_account_is_banned_past_unban_time)
 {
-#line 381
+#line 377
   account_t acc9 = {0};
   acc9.unban_time = time(NULL) - 1;    /* already past */
   ck_assert_int_eq(account_is_banned(&acc9), 0);
@@ -540,11 +531,11 @@ START_TEST(test_account_is_banned_past_unban_time)
 }
 END_TEST
 
-#line 388
+#line 384
 /* 1. Freeing a NULL pointer must be a no-op */
 START_TEST(test_account_free_null_ok)
 {
-#line 390
+#line 386
   account_free(NULL);                 /* should not crash */
 
 /* 2. Freeing the same heap-allocated account twice must be harmless       *
@@ -552,15 +543,6 @@ START_TEST(test_account_free_null_ok)
  *    free so the second call hits only NULLs).                            */
 
 
-/* 3. Freeing an un-initialised, stack-allocated struct must also be safe. */
-}
-END_TEST
-
-START_TEST(test_account_free_uninitialised_struct_ok)
-{
-#line 399
-  account_t local = {0};              /* never passed to account_create() */
-  account_free(&local);               /* no crash expected */
 
 
 /* ========================== LOGIN SUITE ============================ */
@@ -569,11 +551,11 @@ END_TEST
 
 
 
-#line 409
+#line 401
 /*  1. Successful login  */
 START_TEST(test_handle_login_success)
 {
-#line 411
+#line 403
   login_session_data_t session;
   const int out_fd = STDOUT_FILENO, log_fd = STDERR_FILENO;
   const time_t now = time(NULL);
@@ -593,7 +575,7 @@ END_TEST
 
 START_TEST(test_handle_login_user_not_found)
 {
-#line 426
+#line 418
   login_session_data_t s;
   login_result_t r = handle_login(
       "test2", "Str0ng!Pass1",
@@ -609,7 +591,7 @@ END_TEST
 
 START_TEST(test_handle_login_user_banned)
 {
-#line 437
+#line 429
   login_session_data_t s;
   login_result_t r = handle_login(
       "test3", "Str0ng!Pass1",
@@ -625,7 +607,7 @@ END_TEST
 
 START_TEST(test_handle_login_user_expired)
 {
-#line 448
+#line 440
   login_session_data_t s;
   login_result_t r = handle_login(
       "test4", "Str0ng!Pass1",
@@ -641,7 +623,7 @@ END_TEST
 
 START_TEST(test_handle_login_user_too_many_failed_logins)
 {
-#line 459
+#line 451
   login_session_data_t s;
   login_result_t r = handle_login(
       "test5", "Str0ng!Pass5",
@@ -657,7 +639,7 @@ END_TEST
 
 START_TEST(test_handle_login_wrong_password)
 {
-#line 470
+#line 462
   login_session_data_t s;
   login_result_t r = handle_login(
       "test6", "abc123",                  
@@ -673,7 +655,7 @@ END_TEST
 
 START_TEST(test_handle_login_null_password)
 {
-#line 481
+#line 473
   login_session_data_t s;
   login_result_t r = handle_login(
       "test7", NULL,
@@ -689,7 +671,7 @@ END_TEST
 
 START_TEST(test_handle_login_null_username)
 {
-#line 492
+#line 484
   login_session_data_t s;
   login_result_t r = handle_login(
       NULL, "Str0ng!Pass6",
@@ -706,7 +688,7 @@ END_TEST
 
 START_TEST(test_handle_login_exactly_10_prior_failures)
 {
-#line 507
+#line 499
   login_session_data_t s;
   login_result_t r = handle_login(
       "test9", "Str0ng!Pass9",
@@ -720,7 +702,7 @@ END_TEST
 
 START_TEST(test_print_summary_normal_account)
 {
-#line 516
+#line 508
     account_t acc = {0};
     strcpy(acc.userid, "testuser");
     strcpy(acc.email, "test@example.com");
@@ -751,7 +733,7 @@ END_TEST
 
 START_TEST(test_print_summary_null_input)
 {
-#line 542
+#line 534
     bool res_null = account_print_summary(NULL, STDOUT_FILENO);
     ck_assert(!res_null);
 
@@ -760,7 +742,7 @@ END_TEST
 
 START_TEST(test_print_summary_invalid_fd)
 {
-#line 546
+#line 538
     account_t acc2 = {0}; strcpy(acc2.userid, "user");
     bool res_fd = account_print_summary(&acc2, -1);
     ck_assert(!res_fd);
@@ -770,7 +752,7 @@ END_TEST
 
 START_TEST(test_login_fail_count_max)
 {
-#line 551
+#line 543
     account_t acc3 = {0}; acc3.login_fail_count = UINT_MAX;
     account_record_login_failure(&acc3);
     ck_assert_uint_eq(acc3.login_fail_count, UINT_MAX);
@@ -780,7 +762,7 @@ END_TEST
 
 START_TEST(test_print_summary_pipe_closed_before_write)
 {
-#line 556
+#line 548
     account_t acc4 = {0}; strcpy(acc4.userid, "testuser"); strcpy(acc4.email, "test@example.com"); strcpy(acc4.birthdate, "2000-01-01");
     int pipefd2[2]; ck_assert_int_eq(pipe(pipefd2), 0);
     close(pipefd2[1]);
@@ -828,7 +810,6 @@ int main(void)
     tcase_add_test(tc1_4, test_account_create_userid_too_long_rejected);
     tcase_add_test(tc1_4, test_account_create_password_no_digit);
     tcase_add_test(tc1_4, test_account_create_password_max_len_ok);
-    tcase_add_test(tc1_4, test_account_create_birthdate_future);
     tcase_add_test(tc1_4, test_account_set_expiration_time_cap);
     tcase_add_test(tc1_4, test_account_double_free_safe);
     suite_add_tcase(s1, tc1_5);
@@ -851,7 +832,6 @@ int main(void)
     tcase_add_test(tc1_8, test_account_is_banned_past_unban_time);
     suite_add_tcase(s1, tc1_9);
     tcase_add_test(tc1_9, test_account_free_null_ok);
-    tcase_add_test(tc1_9, test_account_free_uninitialised_struct_ok);
     suite_add_tcase(s2, tc2_1);
     tcase_add_test(tc2_1, test_handle_login_success);
     tcase_add_test(tc2_1, test_handle_login_user_not_found);

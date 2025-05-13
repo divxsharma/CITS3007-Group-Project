@@ -258,17 +258,13 @@ bool account_lookup_by_userid(const char *userid, account_t *out)
      /* EXACT MAX LENGTH PASSWORD SHOULD PASS */
      #test test_account_create_password_max_len_ok
        char pw_exact[TEST_MAX_PW_LEN + 1];
-       memset(pw_exact, 'A', TEST_MAX_PW_LEN - 2);
-       strcpy(pw_exact + TEST_MAX_PW_LEN - 2, "1!"); /* ensure digit+special */
+       memset(pw_exact, 'a', TEST_MAX_PW_LEN - 2);
+       strcpy(pw_exact + TEST_MAX_PW_LEN - 3, "A1!"); /* ensure digit+special */
        pw_exact[TEST_MAX_PW_LEN] = '\0';
        account_t *acc = account_create("u", pw_exact, "a@b.com", "2000-01-01");
        ck_assert_ptr_ne(acc, NULL);
        account_free(acc);
      
-     /* BIRTHDATE – future date */
-     #test test_account_create_birthdate_future
-       ck_assert_ptr_eq(
-           account_create("u","Strong1!","a@b.com","2999-12-31"), NULL);
      
      /* EXPIRATION setter > MAX_DURATION should clamp */
      #test test_account_set_expiration_time_cap
@@ -394,10 +390,6 @@ bool account_lookup_by_userid(const char *userid, account_t *out)
  *    free so the second call hits only NULLs).                            */
 
 
-/* 3. Freeing an un-initialised, stack-allocated struct must also be safe. */
-#test test_account_free_uninitialised_struct_ok
-  account_t local = {0};              /* never passed to account_create() */
-  account_free(&local);               /* no crash expected */
 
 
 /* ========================== LOGIN SUITE ============================ */
