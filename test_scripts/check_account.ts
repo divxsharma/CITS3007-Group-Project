@@ -193,6 +193,39 @@
   ck_assert_ptr_eq(
       account_create(long_uid, "Strong1!", "good@e.com", "2000-01-01"),
       NULL);
+      /* PASSWORD COMPLEXITY – no digit */
+     #test test_account_create_password_no_digit
+       ck_assert_ptr_eq(account_create("u", "NoDigits!", "a@b.com", "2000-01-01"), NULL);
+     
+     /* EXACT MAX LENGTH PASSWORD SHOULD PASS */
+     #test test_account_create_password_max_len_ok
+       char pw_exact[TEST_MAX_PW_LEN + 1];
+       memset(pw_exact, 'A', TEST_MAX_PW_LEN - 2);
+       strcpy(pw_exact + TEST_MAX_PW_LEN - 2, "1!"); /* ensure digit+special */
+       pw_exact[TEST_MAX_PW_LEN] = '\0';
+       account_t *acc = account_create("u", pw_exact, "a@b.com", "2000-01-01");
+       ck_assert_ptr_ne(acc, NULL);
+       account_free(acc);
+     
+     /* BIRTHDATE – future date */
+     #test test_account_create_birthdate_future
+       ck_assert_ptr_eq(
+           account_create("u","Strong1!","a@b.com","2999-12-31"), NULL);
+     
+     /* EXPIRATION setter > MAX_DURATION should clamp */
+     #test test_account_set_expiration_time_cap
+       account_t accE = {0};
+       time_t now = time(NULL);
+       account_set_expiration_time(&accE, TEST_MAX_DURATION * 3);
+       ck_assert(accE.expiration_time - now <= TEST_MAX_DURATION);
+     
+     /* DOUBLE FREE safety */
+     #test test_account_double_free_safe
+       account_t *tmp = account_create("u","Strong1!","e@e.com","2000-01-01");
+       account_free(tmp);
+       account_free(tmp); /* should be no-op / no crash */
+
+
 
 /*   Account Set email tests  */
 #tcase account_set_email_edge_case
@@ -294,5 +327,17 @@
 /* ──  misc / safety  ─ */
 #tcase misc_edge_case
 
+/* 1. Freeing a NULL pointer must be a no-op */
 #test test_account_free_null_ok
-  account_free(NULL);   /* must be a no‑op */
+  account_free(NULL);                 /* should not crash */
+
+/* 2. Freeing the same heap-allocated account twice must be harmless       *
+ *    (requires account_free() to wipe internal pointers after the first   *
+ *    free so the second call hits only NULLs).                            */
+
+
+/* 3. Freeing an un-initialised, stack-allocated struct must also be safe. */
+#test test_account_free_uninitialised_struct_ok
+  account_t local = {0};              /* never passed to account_create() */
+  account_free(&local);               /* no crash expected */
+
