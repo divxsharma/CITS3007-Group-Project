@@ -1,24 +1,82 @@
-#define CITS3007_PERMISSIVE
+/******************************************************************
+ *  check_everything.ts – unified test file (account + login) with full test cases
+ ******************************************************************/
 
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 #include <stdbool.h>
 #include <time.h>
 #include <arpa/inet.h>
+#include <pthread.h>
+#include <stdarg.h>
+#include <unistd.h>
+
+#include <check.h>
 
 #include "../src/account.h"
+#include "../src/login.h"
+#include "../src/logging.h"
 
-/* Private copies of internal‑only limits (keep in sync with account.c) */
-#define TEST_MIN_PW_LEN   8          /* MIN_PASSWORD_LENGTH */
-#define TEST_MAX_PW_LEN   128        /* MAX_PW_LEN          */
-#define TEST_MAX_DURATION 31536000   /* MAX_DURATION (1 year) */
+/* ---------- Test-only helper stubs ---------- */
 
-// Build command = gcc -std=c11 -Wall -Wextra -Wpedantic -Werror -o check_account test_scripts/check_account.c src/account.c src/stubs.c -lcheck -pthread -lm -lrt -lsubunit -lsodium
-// Run command = ./test_scripts/check_account
-#define ARR_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+/* panic(): fail fast if invoked */
+void panic(const char *msg)
+{
+    fprintf(stderr, "PANIC: %s\n", msg);
+    abort();
+}
+
+/* Thread-safe minimal logger */
+static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
+void log_message(log_level_t level, const char *fmt, ...)
+{
+    pthread_mutex_lock(&log_mutex);
+    FILE *out = (level == LOG_INFO) ? stdout : stderr;
+    va_list ap;
+    va_start(ap, fmt);
+    vfprintf(out, fmt, ap);
+    fprintf(out, "\n");
+    va_end(ap);
+    pthread_mutex_unlock(&log_mutex);
+}
+
+/* Mock DB lookup for handle_login() */
+bool account_lookup_by_userid(const char *userid, account_t *out)
+{
+    if (!userid || !out) return false;
+
+    #define FILL(id, ban, exp, pw)                \
+        do {                                      \
+            memset(out, 0, sizeof *out);          \
+            out->account_id     = (id);           \
+            strcpy(out->userid, userid);          \
+            out->unban_time      = (ban);         \
+            out->expiration_time = (exp);         \
+            account_update_password(out, (pw));   \
+        } while (0)
+
+    time_t day = 24 * 60 * 60;
+    if (strcmp(userid, "test1") == 0) { FILL(1, 0, time(NULL)+day, "Str0ng!Pass1"); return true; }
+    if (strcmp(userid, "test2") == 0) { return false; }
+    if (strcmp(userid, "test3") == 0) { FILL(3, time(NULL)+10000000, time(NULL)+day, "Str0ng!Pass3"); return true; }
+    if (strcmp(userid, "test4") == 0) { FILL(4, 0, time(NULL)-day, "Str0ng!Pass4"); return true; }
+    if (strcmp(userid, "test5") == 0) { FILL(5, 0, time(NULL)+day, "Str0ng!Pass5"); out->login_fail_count = 11; return true; }
+    if (strcmp(userid, "test6") == 0) { FILL(6, 0, time(NULL)+day, "Str0ng!Pass6"); return true; }
+    if (strcmp(userid, "test7") == 0) { FILL(7, 0, time(NULL)+day, "Str0ng!Pass7"); return true; }
+    if (strcmp(userid, "test9") == 0) { FILL(9, 0, time(NULL)+day, "Str0ng!Pass9"); out->login_fail_count = 10; return true; }
+
+    return false;
+}
+#undef FILL
+
+/* ---------- constants from account.c ---------- */
+#define TEST_MIN_PW_LEN   8
+#define TEST_MAX_PW_LEN   128
+#define TEST_MAX_DURATION 31536000
+
+/* ========================== ACCOUNT SUITE ========================== */
 
 #suite account_suite
 
@@ -341,3 +399,162 @@
   account_t local = {0};              /* never passed to account_create() */
   account_free(&local);               /* no crash expected */
 
+
+/* ========================== LOGIN SUITE ============================ */
+#suite handle_login_suite
+
+#tcase core_paths
+
+
+/*  1. Successful login  */
+#test test_handle_login_success
+  login_session_data_t session;
+  const int out_fd = STDOUT_FILENO, log_fd = STDERR_FILENO;
+  const time_t now = time(NULL);
+  const ip4_addr_t ip = {127001};             /* 127.0.0.1 */
+
+  login_result_t res = handle_login(
+      "test1", "Str0ng!Pass1",
+      ip, now, out_fd, log_fd, &session);
+
+  ck_assert_int_eq(res, LOGIN_SUCCESS);
+  ck_assert_int_eq(session.session_start, now);
+
+
+/*  2. User not found  */
+#test test_handle_login_user_not_found
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test2", "Str0ng!Pass1",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_USER_NOT_FOUND);
+
+
+/*  3. Account banned  */
+#test test_handle_login_user_banned
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test3", "Str0ng!Pass1",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_ACCOUNT_BANNED);
+
+
+/*  4. Account expired  */
+#test test_handle_login_user_expired
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test4", "Str0ng!Pass1",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_ACCOUNT_EXPIRED);
+
+
+/*  5. Too many failed logins => treated as bad password  */
+#test test_handle_login_user_too_many_failed_logins
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test5", "Str0ng!Pass5",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_BAD_PASSWORD);
+
+
+/*  6. Correct username, wrong password  */
+#test test_handle_login_wrong_password
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test6", "abc123",                  
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_BAD_PASSWORD);
+
+
+/*  7. Correct username, NULL password  */
+#test test_handle_login_null_password
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test7", NULL,
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_BAD_PASSWORD);
+
+
+/*  8. NULL username, correct password (should map to “user not found”)  */
+#test test_handle_login_null_username
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      NULL, "Str0ng!Pass6",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_FAIL_USER_NOT_FOUND);
+
+
+/*  9. Exactly 10 prior failures – still allowed to login  */
+#suite account_summary_suite
+
+#tcase summary_core
+
+#test test_handle_login_exactly_10_prior_failures
+  login_session_data_t s;
+  login_result_t r = handle_login(
+      "test9", "Str0ng!Pass9",
+      (ip4_addr_t){127001}, time(NULL),
+      STDOUT_FILENO, STDERR_FILENO, &s);
+
+  ck_assert_int_eq(r, LOGIN_SUCCESS);
+  
+  #test test_print_summary_normal_account
+    account_t acc = {0};
+    strcpy(acc.userid, "testuser");
+    strcpy(acc.email, "test@example.com");
+    acc.login_count = 5;
+    acc.login_fail_count = 2;
+    acc.expiration_time = 0;
+    acc.unban_time = 0;
+    inet_pton(AF_INET, "127.0.0.1", &acc.last_ip);
+    strcpy(acc.birthdate, "2000-01-01");
+    acc.last_login_time = time(NULL);
+
+    int pipefd[2]; ck_assert_int_eq(pipe(pipefd), 0);
+    bool ok = account_print_summary(&acc, pipefd[1]);
+    fsync(pipefd[1]); close(pipefd[1]);
+    ck_assert(ok);
+    char outbuf[2048] = {0}; read(pipefd[0], outbuf, sizeof(outbuf)); close(pipefd[0]);
+    ck_assert_msg(strstr(outbuf, "testuser"), "userid missing");
+    ck_assert_msg(strstr(outbuf, "test@example.com"), "email missing");
+    ck_assert_msg(strstr(outbuf, "Login Successes: 5"), "success count missing");
+    ck_assert_msg(strstr(outbuf, "Login Failures: 2"), "fail count missing");
+    ck_assert_msg(strstr(outbuf, "Birthdate: 2000-01-01"), "birthdate missing");
+    ck_assert_msg(strstr(outbuf, "127.0.0.1"), "IP missing");
+    char year[5]; strftime(year, sizeof(year), "%Y", localtime(&acc.last_login_time));
+    ck_assert_msg(strstr(outbuf, year), "year missing");
+
+#test test_print_summary_null_input
+    bool res_null = account_print_summary(NULL, STDOUT_FILENO);
+    ck_assert(!res_null);
+
+#test test_print_summary_invalid_fd
+    account_t acc2 = {0}; strcpy(acc2.userid, "user");
+    bool res_fd = account_print_summary(&acc2, -1);
+    ck_assert(!res_fd);
+
+#test test_login_fail_count_max
+    account_t acc3 = {0}; acc3.login_fail_count = UINT_MAX;
+    account_record_login_failure(&acc3);
+    ck_assert_uint_eq(acc3.login_fail_count, UINT_MAX);
+
+#test test_print_summary_pipe_closed_before_write
+    account_t acc4 = {0}; strcpy(acc4.userid, "testuser"); strcpy(acc4.email, "test@example.com"); strcpy(acc4.birthdate, "2000-01-01");
+    int pipefd2[2]; ck_assert_int_eq(pipe(pipefd2), 0);
+    close(pipefd2[1]);
+    bool res_fail = account_print_summary(&acc4, pipefd2[1]); close(pipefd2[0]);
+    ck_assert(!res_fail);

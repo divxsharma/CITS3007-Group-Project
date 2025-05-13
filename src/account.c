@@ -113,9 +113,13 @@ static bool check_email(const char *email) {
       if (!(isalnum(c) || c == '.' || c == '_' || c == '-' || c == '+')) {
         return false;
       }
-    } else if (email[i] == '@') {
+    } 
+    
+    else if (email[i] == '@') {
       continue;
-    } else {
+    } 
+    
+    else {
       if (!(isalnum(c) || c == '.' || c == '-'))
         return false;
     }
@@ -160,7 +164,9 @@ static bool check_birthdate(const char *birthdate) {
       if (birthdate[i] != '-') {
         return false;
       }
-    } else if (!isdigit((unsigned char)birthdate[i])) {
+    } 
+    
+    else if (!isdigit((unsigned char)birthdate[i])) {
       return false;
     }
   }
@@ -197,18 +203,14 @@ static bool check_birthdate(const char *birthdate) {
 static bool validate_password(const char *password_provided) {
 
   if (password_provided == NULL) {
-    log_message(LOG_ERROR, "[validate_password]: Failed to validate password, "
-                           "Password contains NULL value or is empty.\n");
+    log_message(LOG_ERROR, "[validate_password]: Failed to validate password, Password contains NULL value or is empty.\n");
     return false;
   }
 
   size_t len = strlen(password_provided);
 
   if (len < MIN_PW_LEN || len > MAX_PW_LEN) {
-    log_message(
-        LOG_ERROR,
-        "[validate_password]: Password must be between %d and %d characters.\n",
-        MIN_PW_LEN, MAX_PW_LEN);
+    log_message(LOG_ERROR,"[validate_password]: Password must be between %d and %d characters.\n", MIN_PW_LEN, MAX_PW_LEN);
     return false;
   }
 
@@ -225,8 +227,7 @@ static bool validate_password(const char *password_provided) {
     unsigned char c = (unsigned char)password_provided[i];
 
     if (strchr(blacklisted_chars, c)) {
-      log_message(LOG_ERROR, "[validate_password]: Failed to validate "
-                             "password, Blacklisted chars were provided.\n");
+      log_message(LOG_ERROR, "[validate_password]: Failed to validate password, Blacklisted chars were provided.\n");
       return false;
     }
 
@@ -281,14 +282,12 @@ static bool safe_str_copy(char *dst, size_t dst_size, const char *src) {
   int result = snprintf(dst, dst_size, "%s", src);
 
   if (result < 0) {
-    log_message(LOG_ERROR,
-                "[account_create]: snprintf error in copying value.\n");
+    log_message(LOG_ERROR, "[safe_str_copy]: snprintf error in copying value.\n");
     return false;
   }
 
   if ((size_t)result >= dst_size) {
-    log_message(LOG_ERROR, "[account_create]: Failed to copy over value as "
-                           "truncation has occured.\n");
+    log_message(LOG_ERROR, "[safe_str_copy]: Failed to copy over value as truncation has occured.\n");
     return false;
   }
   return true;
@@ -322,9 +321,7 @@ static void format_time(time_t t, char *buffer, size_t len) {
   struct tm *tm_info = localtime(&t);
   if (!tm_info || strftime(buffer, len, "%Y-%m-%d %H:%M:%S", tm_info) == 0) {
     if (!safe_str_copy(buffer, len, "unavailable")) {
-      log_message(
-          LOG_ERROR,
-          "[format_time]: Failed to copy fallback string into buffer.\n");
+      log_message(LOG_ERROR, "[format_time]: Failed to copy fallback string into buffer.\n");
     }
   }
 }
@@ -360,8 +357,7 @@ static void format_ip(ip4_addr_t ip, char *buffer, size_t len) {
 
   if (!inet_ntop(AF_INET, &ip, buffer, len)) {
     if (!safe_str_copy(buffer, len, "unavailable")) {
-      log_message(LOG_ERROR,
-                  "[format_ip]: Failed to copy fallback IP string.\n");
+      log_message(LOG_ERROR,"[format_ip]: Failed to copy fallback IP string.\n");
     }
   }
 }
@@ -400,8 +396,7 @@ static bool safe_fd_printf(int fd, const char *fmt, ...) {
   va_end(args);
 
   if (len < 0 || (size_t)len >= sizeof(buffer)) {
-    log_message(LOG_ERROR,
-                "[safe_fd_printf]: Formatting error or output truncated.\n");
+    log_message(LOG_ERROR, "[safe_fd_printf]: Formatting error or output truncated.\n");
     return false;
   }
 
@@ -455,14 +450,12 @@ static bool safe_fd_printf(int fd, const char *fmt, ...) {
 account_t *account_create(const char *userid, const char *plaintext_password,
                           const char *email, const char *birthdate) {
   if (!userid || !plaintext_password || !email || !birthdate) {
-    log_message(LOG_ERROR, "[account_create]: Userid, plaintext, email or "
-                           "birthday cannot be empty/NULL.\n");
+    log_message(LOG_ERROR, "[account_create]: Userid, plaintext, email or birthday cannot be empty/NULL.\n");
     return NULL;
   }
 
   if (!validate_password(plaintext_password)) {
-    log_message(LOG_ERROR, "[account_create]: Password contains unsafe "
-                           "characters that may allow injection.");
+    log_message(LOG_ERROR, "[account_create]: Password contains unsafe characters that may allow injection.");
     return NULL;
   }
 
@@ -477,15 +470,13 @@ account_t *account_create(const char *userid, const char *plaintext_password,
   }
 
   if (sodium_init() < 0) {
-    log_message(LOG_ERROR,
-                "[account_create]: Failed to initalise Libsodium library.\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to initalise Libsodium library.\n");
     return NULL;
   }
 
   account_t *acc = calloc(1, sizeof(account_t));
   if (!acc) {
-    log_message(LOG_ERROR, "[account_create]: Failed to allocate memory for "
-                           "acc struct (calloc returned NULL).\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to allocate memory for acc struct (calloc returned NULL).\n");
     return NULL;
   }
 
@@ -493,34 +484,31 @@ account_t *account_create(const char *userid, const char *plaintext_password,
   acc->expiration_time = 0;
 
   if (!safe_str_copy(acc->userid, USER_ID_LENGTH, userid)) {
-    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user "
-                           "provided USERID string into acc struct.\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided USERID string into acc struct.\n");
     account_free(acc);
     return NULL;
   }
 
   if (crypto_pwhash_str(acc->password_hash, plaintext_password,
                         strlen(plaintext_password), OPSLIMIT, MEMLIMIT) != 0) {
-    log_message(LOG_ERROR, "[account_create]: Failed to securely hash password "
-                           "with crypto_pwhash_str().\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to securely hash password with crypto_pwhash_str().\n");
     account_free(acc);
     return NULL;
   }
 
   if (!safe_str_copy(acc->email, EMAIL_LENGTH, email)) {
-    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user "
-                           "provided EMAIL string into acc struct.\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided EMAIL string into acc struct.\n");
     account_free(acc);
     return NULL;
   }
 
   if (!safe_str_copy(acc->birthdate, BIRTHDATE_LENGTH, birthdate)) {
-    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user "
-                           "provided BIRTHDATE string into acc struct.\n");
+    log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided BIRTHDATE string into acc struct.\n");
     account_free(acc);
     return NULL;
   }
 
+  log_message(LOG_INFO, "[account_create]: Account for user '%s' successfully created.\n", acc->userid);
   return acc;
 }
 
@@ -545,11 +533,10 @@ account_t *account_create(const char *userid, const char *plaintext_password,
 
 void account_free(account_t *acc) {
   if (!acc) {
-    log_message(LOG_ERROR, "[account_free]: Failed to open account_t struct, "
-                           "it must not be NULL.\n");
-  } else {
-    log_message(LOG_ERROR, "[account_free]: Account struct found. Proceeding "
-                           "to securely erase data and free memory.\n");
+    log_message(LOG_ERROR, "[account_free]: Failed to open account_t struct, it must not be NULL.\n");
+  } 
+  else {
+    log_message(LOG_INFO, "[account_free]: Account struct found. Proceeding to securely erase data and free memory.\n");
     sodium_memzero(acc, sizeof *acc);
     free(acc);
   }
@@ -594,13 +581,10 @@ void account_set_email(account_t *acc, const char *new_email) {
   }
 
   if (!safe_str_copy(acc->email, EMAIL_LENGTH, new_email)) {
-    log_message(
-        LOG_ERROR,
-        "[account_set_email]: Failed to update email to due copy failure.\n");
+    log_message(LOG_ERROR,"[account_set_email]: Failed to update email to due copy failure.\n");
   }
 
-  log_message(LOG_INFO,
-              "[account_set_email]: Email has been successfully updated.\n");
+  log_message(LOG_INFO,"[account_set_email]: Email has been successfully updated.\n");
 }
 
 /**
@@ -639,30 +623,24 @@ void account_set_email(account_t *acc, const char *new_email) {
 bool account_validate_password(const account_t *acc,
                                const char *plaintext_password) {
   if (sodium_init() < 0) {
-    log_message(LOG_ERROR, "[account_validate_password]: Failed to intialise "
-                           "Libsodium library.\n");
+    log_message(LOG_ERROR, "[account_validate_password]: Failed to intialise Libsodium library.\n");
     return false;
   }
 
   if (!validate_password(plaintext_password)) {
-    log_message(LOG_ERROR,
-                "[account_validate_password]: User's plaintext password does "
-                "not meet secure desired password properties.\n");
+    log_message(LOG_ERROR, "[account_validate_password]: User's plaintext password does not meet secure desired password properties.\n");
     return false;
   }
 
   char secure_pw[MAX_PW_LEN];
 
   if (sodium_mlock(secure_pw, sizeof(secure_pw)) != 0) {
-    log_message(
-        LOG_ERROR,
-        "[account_validate_password]: Failed to lock memory for password.\n");
+    log_message(LOG_ERROR,"[account_validate_password]: Failed to lock memory for password.\n");
     return false;
   }
 
   if (!safe_str_copy(secure_pw, sizeof(secure_pw), plaintext_password)) {
-    log_message(LOG_ERROR, "[account_validate_password]: Failed to securely "
-                           "copy password into memory.\n");
+    log_message(LOG_ERROR, "[account_validate_password]: Failed to securely copy password into memory.\n");
     sodium_munlock(secure_pw, sizeof(secure_pw));
     return false;
   }
@@ -674,18 +652,12 @@ bool account_validate_password(const account_t *acc,
   sodium_memzero(secure_pw, sizeof(secure_pw));
 
   if (result == 0) {
-    log_message(LOG_INFO,
-                "[account_validate_password]: Password validated successfully "
-                "for user '%s'.\n",
-                acc->userid);
+    log_message(LOG_INFO,"[account_validate_password]: Password validated successfully for user '%s'.\n", acc->userid);
     return true;
   }
 
   else {
-    log_message(LOG_ERROR,
-                "[account_validate_password]: Password validation failed for "
-                "user '%s'.\n",
-                acc->userid);
+    log_message(LOG_ERROR,"[account_validate_password]: Password validation failed for user '%s'.\n", acc->userid);
     return false;
   }
 }
@@ -720,19 +692,14 @@ bool account_validate_password(const account_t *acc,
  *         `false` if validation, memory protection, or hashing fails.
  */
 
-bool account_update_password(account_t *acc,
-                             const char *new_plaintext_password) {
+bool account_update_password(account_t *acc, const char *new_plaintext_password) {
   if (sodium_init() < 0) {
-    log_message(
-        LOG_ERROR,
-        "[account_update_password]: Failed to intialise Libsodium library.\n");
+    log_message(LOG_ERROR,"[account_update_password]: Failed to intialise Libsodium library.\n");
     return false;
   }
 
   if (!validate_password(new_plaintext_password)) {
-    log_message(LOG_ERROR,
-                "[account_update_password]: New plaintext password does not "
-                "meet secure desired password properties.\n");
+    log_message(LOG_ERROR,"[account_update_password]: New plaintext password does not meet secure desired password properties.\n");
     return false;
   }
 
@@ -740,37 +707,29 @@ bool account_update_password(account_t *acc,
 
   if (sodium_mlock(new_secure_pw, sizeof(new_secure_pw)) != 0) {
     log_message(
-        LOG_ERROR,
-        "[account_update_password]: Failed to lock memory for new password.\n");
+        LOG_ERROR,"[account_update_password]: Failed to lock memory for new password.\n");
     return false;
   }
 
-  if (!safe_str_copy(new_secure_pw, sizeof(new_secure_pw),
-                     new_plaintext_password)) {
-    log_message(LOG_ERROR, "[account_update_password]: Failed to securely copy "
-                           "new password into memory.\n");
+  if (!safe_str_copy(new_secure_pw, sizeof(new_secure_pw), new_plaintext_password)) {
+    log_message(LOG_ERROR, "[account_update_password]: Failed to securely copy new password into memory.\n");
     sodium_munlock(new_secure_pw, sizeof(new_secure_pw));
     sodium_memzero(new_secure_pw, sizeof(new_secure_pw));
     return false;
   }
 
-  int result = crypto_pwhash_str(acc->password_hash, new_secure_pw,
-                                 strlen(new_secure_pw), OPSLIMIT, MEMLIMIT);
+  int result = crypto_pwhash_str(acc->password_hash, new_secure_pw, strlen(new_secure_pw), OPSLIMIT, MEMLIMIT);
 
   sodium_munlock(new_secure_pw, sizeof(new_secure_pw));
   sodium_memzero(new_secure_pw, sizeof(new_secure_pw));
 
   if (result == 0) {
-    log_message(LOG_INFO,
-                "[account_update_password]: Password updated successfully for "
-                "user '%s'.\n",
-                acc->userid);
+    log_message(LOG_INFO,"[account_update_password]: Password updated successfully for user '%s'.\n", acc->userid);
     return true;
-  } else {
-    log_message(
-        LOG_ERROR,
-        "[account_update_password]: Password update failed for user '%s'.\n",
-        acc->userid);
+  } 
+  
+  else {
+    log_message(LOG_ERROR,"[account_update_password]: Password update failed for user '%s'.\n", acc->userid);
     return false;
   }
 }
@@ -805,20 +764,15 @@ bool account_update_password(account_t *acc,
 
 void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   if (!acc) {
-    log_message(LOG_ERROR,
-                "[account_record_login_success]: NULL account pointer.\n");
+    log_message(LOG_ERROR,"[account_record_login_success]: NULL account pointer.\n");
     return;
   }
 
   char ip_str[INET_ADDRSTRLEN] = {0};
   if (!inet_ntop(AF_INET, &ip, ip_str, INET_ADDRSTRLEN)) {
-    log_message(
-        LOG_WARN,
-        "[account_record_login_success]: Failed to convert IP for user '%s'.\n",
-        acc->userid);
+    log_message( LOG_WARN, "[account_record_login_success]: Failed to convert IP for user '%s'.\n", acc->userid);
     if (!safe_str_copy(ip_str, sizeof(ip_str), "unknown")) {
-      log_message(LOG_ERROR, "[account_record_login_success]: Failed to copy "
-                             "fallback IP string.\n");
+      log_message(LOG_ERROR, "[account_record_login_success]: Failed to copy fallback IP string.\n");
     }
   }
 
@@ -830,10 +784,7 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
   acc->login_fail_count = 0;
   acc->login_count++;
 
-  log_message(LOG_INFO,
-              "[account_record_login_success]: User '%s' successfully logged "
-              "in from IP '%s' at '%s'.\n",
-              acc->userid, ip_str, time_str);
+  log_message(LOG_INFO,"[account_record_login_success]: User '%s' successfully logged in from IP '%s' at '%s'.\n", acc->userid, ip_str, time_str);
 }
 
 /**
@@ -857,26 +808,19 @@ void account_record_login_success(account_t *acc, ip4_addr_t ip) {
 
 void account_record_login_failure(account_t *acc) {
   if (!acc) {
-    log_message(
-        LOG_ERROR,
-        "[account_record_login_failure]: NULL account pointer received.\n");
+    log_message(LOG_ERROR, "[account_record_login_failure]: NULL account pointer received.\n");
     return;
   }
 
   if (acc->login_fail_count == UINT_MAX) {
-    log_message(LOG_WARN,
-                "[account_record_login_failure]: Max failure count reached for "
-                "user '%s'.\n",
-                acc->userid);
+    log_message(LOG_WARN, "[account_record_login_failure]: Max failure count reached for user '%s'.\n", acc->userid);
     return;
   }
 
   acc->login_fail_count++;
   acc->login_count = 0;
 
-  log_message(LOG_INFO,
-              "[account_record_login_failure]: Failure #%u for user '%s'.\n",
-              acc->login_fail_count, acc->userid);
+  log_message(LOG_INFO, "[account_record_login_failure]: Failure #%u for user '%s'.\n", acc->login_fail_count, acc->userid);
 }
 
 /**
@@ -906,8 +850,7 @@ void account_record_login_failure(account_t *acc) {
  */
 bool account_is_banned(const account_t *acc) {
   if (acc == NULL) {
-    log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer "
-                           "received, either account does not exist.\n");
+    log_message(LOG_ERROR, "[account_is_banned]: NULL account pointer received, either account does not exist.\n");
     return true;
   }
 
@@ -918,8 +861,7 @@ bool account_is_banned(const account_t *acc) {
 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
-    log_message(LOG_ERROR,
-                "[account_is_banned]: Current time not available.\n");
+    log_message(LOG_ERROR, "[account_is_banned]: Current time not available.\n");
     return true;
   }
 
@@ -955,19 +897,18 @@ bool account_is_banned(const account_t *acc) {
 
 bool account_is_expired(const account_t *acc) {
   if (acc == NULL) {
-    log_message(LOG_ERROR,
-                "[account_is_expired]: NULL account pointer received.\n");
+    log_message(LOG_ERROR, "[account_is_expired]: NULL account pointer received.\n");
     return true;
   }
 
   if (acc->expiration_time == 0) {
+    log_message(LOG_INFO, "[account_is_expired]: Account is not expired.\n");
     return false;
   }
 
   time_t current_time = time(NULL);
   if (current_time == (time_t)-1) {
-    log_message(LOG_ERROR,
-                "[account_is_expired]: Current time not available.\n");
+    log_message(LOG_ERROR, "[account_is_expired]: Current time not available.\n");
     return true;
   }
 
@@ -1001,14 +942,12 @@ bool account_is_expired(const account_t *acc) {
 
 void account_set_unban_time(account_t *acc, time_t t) {
   if (acc == NULL) {
-    log_message(LOG_ERROR,
-                "[account_set_unban_time]: NULL account pointer received.\n");
+    log_message(LOG_ERROR, "[account_set_unban_time]: NULL account pointer received.\n");
     return;
   }
 
   if (t < 0) {
-    log_message(LOG_WARN, "[account_set_unban_time]: Negative duration "
-                          "provided; unban_time not updated.\n");
+    log_message(LOG_WARN, "[account_set_unban_time]: Negative duration provided; unban_time not updated.\n");
     return;
   }
 
@@ -1018,18 +957,17 @@ void account_set_unban_time(account_t *acc, time_t t) {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-      log_message(LOG_ERROR,
-                  "[account_set_unban_time]: Current time not available.\n");
+      log_message(LOG_ERROR, "[account_set_unban_time]: Current time not available.\n");
       return;
     }
 
     if (t > MAX_DURATION) {
-      log_message(LOG_WARN, "[account_set_unban_time]: Duration exceeds "
-                            "maximum limit, setting to max duration.\n");
+      log_message(LOG_WARN, "[account_set_unban_time]: Duration exceeds maximum limit, setting to max duration.\n");
       t = MAX_DURATION;
     }
 
     acc->unban_time = current_time + t;
+    log_message(LOG_INFO, "[account_set_unban_time]: Account unban time has been set.\n");
   }
 }
 
@@ -1062,37 +1000,33 @@ void account_set_unban_time(account_t *acc, time_t t) {
 
 void account_set_expiration_time(account_t *acc, time_t t) {
   if (acc == NULL) {
-    log_message(
-        LOG_ERROR,
-        "[account_set_expiration_time]: NULL account pointer received.\n");
+    log_message(LOG_ERROR,"[account_set_expiration_time]: NULL account pointer received.\n");
     return;
   }
 
   if (t < 0) {
-    log_message(LOG_WARN, "[account_set_expiration_time]: Negative duration "
-                          "provided; expiration_time not updated.\n");
+    log_message(LOG_WARN, "[account_set_expiration_time]: Negative duration provided; expiration_time not updated.\n");
     return;
   }
 
   if (t == 0) {
     acc->expiration_time = 0;
-  } else {
+  } 
+  else {
 
     time_t current_time = time(NULL);
     if (current_time == (time_t)-1) {
-      log_message(
-          LOG_ERROR,
-          "[account_set_expiration_time]: Current time not available.\n");
+      log_message(LOG_ERROR, "[account_set_expiration_time]: Current time not available.\n");
       return;
-    }
+    } 
 
     if (t > MAX_DURATION) {
-      log_message(LOG_WARN, "[account_set_expiration_time]: Duration exceeds "
-                            "maximum limit, setting to max duration.\n");
+      log_message(LOG_WARN, "[account_set_expiration_time]: Duration exceeds maximum limit, setting to max duration.\n");
       t = MAX_DURATION;
     }
 
     acc->expiration_time = current_time + t;
+    log_message(LOG_INFO, "[account_set_expiration_time]: Account expiration time has been set.\n");
   }
 }
 
@@ -1173,9 +1107,7 @@ bool account_print_summary(const account_t *acct, int fd) {
     return false;
   }
 
-  log_message(LOG_INFO,
-              "[account_print_summary]: Printed summary for user '%s'.",
-              acct->userid);
+  log_message(LOG_INFO, "[account_print_summary]: Printed summary for user '%s'.", acct->userid);
 
   return true;
 }
