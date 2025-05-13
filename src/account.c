@@ -23,7 +23,6 @@
 #define MAX_TIME_STR_LEN 64
 #define MAX_DURATION 31536000
 #define MAX_LINE_LEN 256
-#define MAX_EMAIL_LEN 100
 
 #define OPSLIMIT crypto_pwhash_OPSLIMIT_INTERACTIVE
 #define MEMLIMIT crypto_pwhash_MEMLIMIT_INTERACTIVE
@@ -58,7 +57,7 @@
  * validate.
  *
  * @pre `email` must not be NULL or empty.
- * @pre `MAX_EMAIL_LEN` and `EMAIL_LENGTH` must be properly defined.
+ * @pre `EMAIL_LENGTH` must be properly defined.
  *
  * @post Returns true if the email passes all structural and character validity
  * checks, otherwise, false.
@@ -502,7 +501,7 @@ account_t *account_create(const char *userid, const char *plaintext_password,
     return NULL;
   }
 
-  if (!safe_str_copy(acc->birthdate, BIRTHDATE_LENGTH, birthdate)) {
+  if (!memmove(acc->birthdate, birthdate, BIRTHDATE_LENGTH)) {
     log_message(LOG_ERROR, "[account_create]: Failed to securely copy user provided BIRTHDATE string into acc struct.\n");
     account_free(acc);
     return NULL;
@@ -557,7 +556,7 @@ void account_free(account_t *acc) {
  *
  * @pre `acc` and `new_email` must not be NULL.
  * @pre `new_email` must pass format validation via `check_email()`.
- * @pre `MAX_EMAIL_LEN` and `EMAIL_LENGTH` must be defined and consistent.
+ * @pre `EMAIL_LENGTH` must be defined and consistent.
  *
  * @post If validation succeeds, `acc->email` is updated with the new value;
  * otherwise, the original email remains unchanged.
