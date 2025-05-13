@@ -499,6 +499,10 @@ bool account_lookup_by_userid(const char *userid, account_t *out)
 
 
 /*  9. Exactly 10 prior failures – still allowed to login  */
+#suite account_summary_suite
+
+#tcase summary_core
+
 #test test_handle_login_exactly_10_prior_failures
   login_session_data_t s;
   login_result_t r = handle_login(
@@ -507,3 +511,50 @@ bool account_lookup_by_userid(const char *userid, account_t *out)
       STDOUT_FILENO, STDERR_FILENO, &s);
 
   ck_assert_int_eq(r, LOGIN_SUCCESS);
+  
+  #test test_print_summary_normal_account
+    account_t acc = {0};
+    strcpy(acc.userid, "testuser");
+    strcpy(acc.email, "test@example.com");
+    acc.login_count = 5;
+    acc.login_fail_count = 2;
+    acc.expiration_time = 0;
+    acc.unban_time = 0;
+    inet_pton(AF_INET, "127.0.0.1", &acc.last_ip);
+    strcpy(acc.birthdate, "2000-01-01");
+    acc.last_login_time = time(NULL);
+
+    int pipefd[2]; ck_assert_int_eq(pipe(pipefd), 0);
+    bool ok = account_print_summary(&acc, pipefd[1]);
+    fsync(pipefd[1]); close(pipefd[1]);
+    ck_assert(ok);
+    char outbuf[2048] = {0}; read(pipefd[0], outbuf, sizeof(outbuf)); close(pipefd[0]);
+    ck_assert_msg(strstr(outbuf, "testuser"), "userid missing");
+    ck_assert_msg(strstr(outbuf, "test@example.com"), "email missing");
+    ck_assert_msg(strstr(outbuf, "Login Successes: 5"), "success count missing");
+    ck_assert_msg(strstr(outbuf, "Login Failures: 2"), "fail count missing");
+    ck_assert_msg(strstr(outbuf, "Birthdate: 2000-01-01"), "birthdate missing");
+    ck_assert_msg(strstr(outbuf, "127.0.0.1"), "IP missing");
+    char year[5]; strftime(year, sizeof(year), "%Y", localtime(&acc.last_login_time));
+    ck_assert_msg(strstr(outbuf, year), "year missing");
+
+#test test_print_summary_null_input
+    bool res_null = account_print_summary(NULL, STDOUT_FILENO);
+    ck_assert(!res_null);
+
+#test test_print_summary_invalid_fd
+    account_t acc2 = {0}; strcpy(acc2.userid, "user");
+    bool res_fd = account_print_summary(&acc2, -1);
+    ck_assert(!res_fd);
+
+#test test_login_fail_count_max
+    account_t acc3 = {0}; acc3.login_fail_count = UINT_MAX;
+    account_record_login_failure(&acc3);
+    ck_assert_uint_eq(acc3.login_fail_count, UINT_MAX);
+
+#test test_print_summary_pipe_closed_before_write
+    account_t acc4 = {0}; strcpy(acc4.userid, "testuser"); strcpy(acc4.email, "test@example.com"); strcpy(acc4.birthdate, "2000-01-01");
+    int pipefd2[2]; ck_assert_int_eq(pipe(pipefd2), 0);
+    close(pipefd2[1]);
+    bool res_fail = account_print_summary(&acc4, pipefd2[1]); close(pipefd2[0]);
+    ck_assert(!res_fail);
