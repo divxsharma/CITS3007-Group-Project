@@ -19,16 +19,16 @@ jobs:
         sudo apt-get update
         sudo apt-get update && sudo apt-get install -y check libsodium-dev
 
-    - name: Generate test source from check_all.ts
-      run: checkmk test_scripts/check_all.ts > test_scripts/check_all.c
+    - name: Generate test source from check_account.ts
+      run: checkmk test_scripts/check_account.ts > test_scripts/check_account.c
 
     - name: Build tests
       run: |
         gcc -Wall -Wextra -Werror -pedantic -std=c11 -g -pthread \
-        -o test_scripts/check_all \
-        test_scripts/check_all.c \
+        -o test_scripts/check_account \
+        test_scripts/check_account.c \
         src/account.c src/login.c src/logging.h \
         -lcheck -lsodium -lsubunit -lm -lrt -pthread
 
     - name: Run tests
-      run: ./test_scripts/check_all
+      run: ./test_scripts/check_account
