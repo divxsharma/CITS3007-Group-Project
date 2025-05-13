@@ -26,6 +26,7 @@
 #include "login.h"
 #include "logging.h"
 #include "db.h"
+#include "banned.h"
 
 /**
  * @brief Handles user login by verifying credentials, account status, and updating session data.

@@ -50,8 +50,8 @@ PKG_LDFLAGS := $(if $(strip $(PKG_DEPS)),$(shell pkg-config --libs $(PKG_DEPS)))
 # (e.g. to change the optimization level, enable sanitizers, etc.)
 # This is helpful when testing your code locally, even though we will
 # not necessarily use the same flags when testing your code.
-DEBUG = -g -I -O2
-CFLAGS = $(DEBUG) -std=c11 -pedantic-errors -pthread -pedantic -Wall -Wextra -fno-omit-frame-pointer -Wshadow -Wconversion -Wno-unused-result -fsanitize=address,undefined $(INC_FLAGS) $(PKG_CFLAGS)
+DEBUG = -g -I -O1
+CFLAGS = $(DEBUG) -std=c11 -pedantic-errors -pthread -pedantic -Wall -Wextra -fno-omit-frame-pointer -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wno-unused-result -fsanitize=address,undefined,leak -fstack-protector-strong -D_FORTIFY_SOURCE=3 -fPIE -pie -Wl,-z,relro,-z,now  $(INC_FLAGS) $(PKG_CFLAGS)
 LDFLAGS = $(PKG_LDFLAGS)
 
 # how to make a .c file from a .ts file
