@@ -1,0 +1,525 @@
+\hypertarget{account_8c}{}\doxysection{account.\+c File Reference}
+\label{account_8c}\index{account.c@{account.c}}
+
+
+Implements account-\/related functionality including creation, validation, and secure password handling using libsodium.  
+
+
+{\ttfamily \#include \char`\"{}account.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}logging.\+h\char`\"{}}\newline
+{\ttfamily \#include $<$arpa/inet.\+h$>$}\newline
+{\ttfamily \#include $<$ctype.\+h$>$}\newline
+{\ttfamily \#include $<$sodium.\+h$>$}\newline
+{\ttfamily \#include $<$stdbool.\+h$>$}\newline
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$stdlib.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include $<$time.\+h$>$}\newline
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}banned.\+h\char`\"{}}\newline
+Include dependency graph for account.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{account_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Macros}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{account_8c_a3024ccd4a9af5109d24e6c57565d74a1}\label{account_8c_a3024ccd4a9af5109d24e6c57565d74a1}} 
+\#define {\bfseries \+\_\+\+POSIX\+\_\+\+C\+\_\+\+SOURCE}~200809L
+\item 
+\mbox{\Hypertarget{account_8c_ad02d3e46290c33fe9d1b83dd56a36103}\label{account_8c_ad02d3e46290c33fe9d1b83dd56a36103}} 
+\#define {\bfseries MAX\+\_\+\+PW\+\_\+\+LEN}~128
+\item 
+\mbox{\Hypertarget{account_8c_a129a08f77b4b62d2e98a45bb0e0c757e}\label{account_8c_a129a08f77b4b62d2e98a45bb0e0c757e}} 
+\#define {\bfseries MIN\+\_\+\+PW\+\_\+\+LEN}~8
+\item 
+\mbox{\Hypertarget{account_8c_a429b8d0285e7ff4197c2170a1ee06b59}\label{account_8c_a429b8d0285e7ff4197c2170a1ee06b59}} 
+\#define {\bfseries MAX\+\_\+\+TIME\+\_\+\+STR\+\_\+\+LEN}~64
+\item 
+\mbox{\Hypertarget{account_8c_a6fe20280969d53d30eaefea36dfa9c19}\label{account_8c_a6fe20280969d53d30eaefea36dfa9c19}} 
+\#define {\bfseries MAX\+\_\+\+DURATION}~31536000
+\item 
+\mbox{\Hypertarget{account_8c_a09a3b394b8602092d58347b791158062}\label{account_8c_a09a3b394b8602092d58347b791158062}} 
+\#define {\bfseries MAX\+\_\+\+LINE\+\_\+\+LEN}~256
+\item 
+\mbox{\Hypertarget{account_8c_a9e6e3d60aed97cb34d19b00f87318e6c}\label{account_8c_a9e6e3d60aed97cb34d19b00f87318e6c}} 
+\#define {\bfseries OPSLIMIT}~crypto\+\_\+pwhash\+\_\+\+OPSLIMIT\+\_\+\+INTERACTIVE
+\item 
+\mbox{\Hypertarget{account_8c_a6fa9c4326e38093bf1e23e0724bb12bd}\label{account_8c_a6fa9c4326e38093bf1e23e0724bb12bd}} 
+\#define {\bfseries MEMLIMIT}~crypto\+\_\+pwhash\+\_\+\+MEMLIMIT\+\_\+\+INTERACTIVE
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$ \mbox{\hyperlink{account_8c_ab4b3c46b66720750719df193c4201b15}{account\+\_\+create}} (const char $\ast$userid, const char $\ast$plaintext\+\_\+password, const char $\ast$email, const char $\ast$birthdate)
+\begin{DoxyCompactList}\small\item\em Creates and initializes a new user account with validated and securely stored data. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_af686b29dd44e962dd68627d051e96a65}{account\+\_\+free}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc)
+\begin{DoxyCompactList}\small\item\em Securely deallocates and wipes an {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure from memory. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_a5da35963ec07426278f66f9d37db58cb}{account\+\_\+set\+\_\+email}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, const char $\ast$new\+\_\+email)
+\begin{DoxyCompactList}\small\item\em Provide user function to updates the email field of an existing {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{account_8c_a0051b990f5e6a9e4800ed05a7c72fb4d}{account\+\_\+validate\+\_\+password}} (const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, const char $\ast$plaintext\+\_\+password)
+\begin{DoxyCompactList}\small\item\em Validates a user\textquotesingle{}s plaintext password against the stored password hash. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{account_8c_aa4ca3ecc137d919f74b096b4c9c69e06}{account\+\_\+update\+\_\+password}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, const char $\ast$new\+\_\+plaintext\+\_\+password)
+\begin{DoxyCompactList}\small\item\em Updates the stored password hash in an {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure with a new plaintext password provided from user. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_a2c3dd2f57c748c5d4502017deedcd1db}{account\+\_\+record\+\_\+login\+\_\+success}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, ip4\+\_\+addr\+\_\+t ip)
+\begin{DoxyCompactList}\small\item\em Records a successful login for a user account, updating metadata and logging the event. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_aa08ce919568178b2a576aa6cf4c26930}{account\+\_\+record\+\_\+login\+\_\+failure}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc)
+\begin{DoxyCompactList}\small\item\em Records a failed login attempt for the specified user account. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{account_8c_af9c70fb0d71e6d3a8281fe6d456c0bf0}{account\+\_\+is\+\_\+banned}} (const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc)
+\begin{DoxyCompactList}\small\item\em Checks whether a user account is currently banned based on the unban timestamp. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{account_8c_a34a441e59238b76a8cd7f36c94a1ae1b}{account\+\_\+is\+\_\+expired}} (const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc)
+\begin{DoxyCompactList}\small\item\em Determines whether a user account has expired based on the expiration timestamp. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_aada84f2a8333027836a619f14c554ba2}{account\+\_\+set\+\_\+unban\+\_\+time}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, time\+\_\+t t)
+\begin{DoxyCompactList}\small\item\em Sets the unban time for a user account based on a duration from the current time. \end{DoxyCompactList}\item 
+void \mbox{\hyperlink{account_8c_a10db748111392ca7df1d47f35a5e8b21}{account\+\_\+set\+\_\+expiration\+\_\+time}} (\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acc, time\+\_\+t t)
+\begin{DoxyCompactList}\small\item\em Sets the expiration time for a user account based on a duration from the current time. \end{DoxyCompactList}\item 
+bool \mbox{\hyperlink{account_8c_a0d1dafdb93c9614ad833f3f940263d28}{account\+\_\+print\+\_\+summary}} (const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$acct, int fd)
+\begin{DoxyCompactList}\small\item\em Prints a summary of the given account to the specified file descriptor. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Implements account-\/related functionality including creation, validation, and secure password handling using libsodium. 
+
+This file contains functions for managing user accounts, including validating email and birthdate formats, enforcing strong password rules, and securely hashing and verifying passwords. It relies on the libsodium library for cryptographic operations and includes logging for error diagnosis.
+
+\begin{DoxyAuthor}{Author}
+Div Sharma \mbox{[}23810783\mbox{]} 
+
+Pranav Rajput \mbox{[}23736075\mbox{]} 
+
+William Lo \mbox{[}23722943\mbox{]} 
+
+Zachary Wang \mbox{[}24648002\mbox{]} 
+
+Jun Hao Dennis Lou \mbox{[}23067779\mbox{]}
+\end{DoxyAuthor}
+\begin{DoxyRefDesc}{Bug}
+\item[\mbox{\hyperlink{bug__bug000001}{Bug}}]No known bugs. \end{DoxyRefDesc}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{account_8c_ab4b3c46b66720750719df193c4201b15}\label{account_8c_ab4b3c46b66720750719df193c4201b15}} 
+\index{account.c@{account.c}!account\_create@{account\_create}}
+\index{account\_create@{account\_create}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_create()}{account\_create()}}
+{\footnotesize\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$ account\+\_\+create (\begin{DoxyParamCaption}\item[{const char $\ast$}]{userid,  }\item[{const char $\ast$}]{plaintext\+\_\+password,  }\item[{const char $\ast$}]{email,  }\item[{const char $\ast$}]{birthdate }\end{DoxyParamCaption})}
+
+
+
+Creates and initializes a new user account with validated and securely stored data. 
+
+This function performs the following\+:
+\begin{DoxyItemize}
+\item Validates all input parameters (user ID, password, email, and birthdate).
+\item Enforces password security requirements.
+\item Validates email and birthdate format.
+\item Initializes Libsodium for cryptographic operations.
+\item Allocates and populates a new {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure.
+\item Hashes and converts plaintext\+\_\+password to a hashed version using {\ttfamily crypto\+\_\+pwhash\+\_\+str()}.
+\item Securely copies strings into fixed-\/size buffers with truncation protection.
+\end{DoxyItemize}
+
+If any validation or operation fails, an error is logged and {\ttfamily NULL} is returned.
+
+
+\begin{DoxyParams}{Parameters}
+{\em userid} & A null-\/terminated string representing the user ID. \\
+\hline
+{\em plaintext\+\_\+password} & A null-\/terminated string representing the user\textquotesingle{}s password in plaintext. \\
+\hline
+{\em email} & A null-\/terminated string representing the user\textquotesingle{}s email address. \\
+\hline
+{\em birthdate} & A null-\/terminated string in \char`\"{}\+YYYY-\/\+MM-\/\+DD\char`\"{} format representing the user\textquotesingle{}s birthdate.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+All input pointers must be non-\/\+NULL. 
+
+{\ttfamily sodium\+\_\+init()} must succeed before using Libsodium cryptographic functions. 
+
+Constants {\ttfamily USER\+\_\+\+ID\+\_\+\+LENGTH}, {\ttfamily MAX\+\_\+\+PW\+\_\+\+LEN}, {\ttfamily EMAIL\+\_\+\+LENGTH}, and {\ttfamily BIRTHDATE\+\_\+\+LENGTH} must be properly defined.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+On success, a heap-\/allocated {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure is returned, containing securely copied and hashed data. On failure, appropriate error is logged and null is returned.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+\textquotesingle{}true\textquotesingle{} if pointer to a newly allocated and initialized {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} struct on success; \textquotesingle{}false if {\ttfamily NULL} or any validation/operation fails. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_af686b29dd44e962dd68627d051e96a65}\label{account_8c_af686b29dd44e962dd68627d051e96a65}} 
+\index{account.c@{account.c}!account\_free@{account\_free}}
+\index{account\_free@{account\_free}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_free()}{account\_free()}}
+{\footnotesize\ttfamily void account\+\_\+free (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc }\end{DoxyParamCaption})}
+
+
+
+Securely deallocates and wipes an {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure from memory. 
+
+This function performs the following\+:
+\begin{DoxyItemize}
+\item Log successful access to the structure.
+\item Securely erase its contents using {\ttfamily sodium\+\_\+memzero()}.
+\item Free the allocated memory.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to be securely freed.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must either be NULL or points to a valid {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} struct.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If {\ttfamily acc} is non-\/\+NULL then its contents will be wiped securely and memory freed.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_af9c70fb0d71e6d3a8281fe6d456c0bf0}\label{account_8c_af9c70fb0d71e6d3a8281fe6d456c0bf0}} 
+\index{account.c@{account.c}!account\_is\_banned@{account\_is\_banned}}
+\index{account\_is\_banned@{account\_is\_banned}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_is\_banned()}{account\_is\_banned()}}
+{\footnotesize\ttfamily bool account\+\_\+is\+\_\+banned (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc }\end{DoxyParamCaption})}
+
+
+
+Checks whether a user account is currently banned based on the unban timestamp. 
+
+This function determines if an account is banned by comparing the current time with the {\ttfamily unban\+\_\+time} field in the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure\+:
+\begin{DoxyItemize}
+\item If {\ttfamily unban\+\_\+time} is 0, the account is considered not banned.
+\item If the current time is not retrievable, the function conservatively returns {\ttfamily true}.
+\item Otherwise, the function returns {\ttfamily true} if the unban time is still in the future.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to check.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+Logs the result of the ban check and returns the appropriate boolean value.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily true} if the account is banned (i.\+e., {\ttfamily unban\+\_\+time} is in the future), {\ttfamily false} if the account is NULL or the current time cannot be determined; 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a34a441e59238b76a8cd7f36c94a1ae1b}\label{account_8c_a34a441e59238b76a8cd7f36c94a1ae1b}} 
+\index{account.c@{account.c}!account\_is\_expired@{account\_is\_expired}}
+\index{account\_is\_expired@{account\_is\_expired}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_is\_expired()}{account\_is\_expired()}}
+{\footnotesize\ttfamily bool account\+\_\+is\+\_\+expired (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc }\end{DoxyParamCaption})}
+
+
+
+Determines whether a user account has expired based on the expiration timestamp. 
+
+This function checks if the {\ttfamily expiration\+\_\+time} field in the given {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure indicates that the account is no longer valid\+:
+\begin{DoxyItemize}
+\item If {\ttfamily expiration\+\_\+time} is 0, the account is considered non-\/expiring and active.
+\item If the current system time cannot be retrieved, the function conservatively returns {\ttfamily true}.
+\item Otherwise, it returns {\ttfamily true} if the expiration time is earlier than the current time.
+\end{DoxyItemize}
+
+Logging is performed to handle and report null account pointers and system time retrieval failures.
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to check for expiration.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+Logs an error if the account pointer is NULL or if the current time cannot be retrieved.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily true} if the account is expired, if the account is NULL, or if the current time is unavailable; {\ttfamily false} otherwise. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a0d1dafdb93c9614ad833f3f940263d28}\label{account_8c_a0d1dafdb93c9614ad833f3f940263d28}} 
+\index{account.c@{account.c}!account\_print\_summary@{account\_print\_summary}}
+\index{account\_print\_summary@{account\_print\_summary}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_print\_summary()}{account\_print\_summary()}}
+{\footnotesize\ttfamily bool account\+\_\+print\+\_\+summary (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acct,  }\item[{int}]{fd }\end{DoxyParamCaption})}
+
+
+
+Prints a summary of the given account to the specified file descriptor. 
+
+This function formats key account information such as user ID, email, birthdate, login statistics, IP address, and last login time. It writes the summary to a file descriptor (e.\+g., a pipe or file) using {\ttfamily safe\+\_\+fd\+\_\+printf()}. If any write fails, the function returns {\ttfamily false} to indicate failure.
+
+
+\begin{DoxyParams}{Parameters}
+{\em acct} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to summarize. \\
+\hline
+{\em fd} & A writable file descriptor where the summary should be printed.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acct} must not be NULL. 
+
+{\ttfamily fd} must be a valid writable file descriptor.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If successful, writes the formatted summary to the output. Logs success or any failures.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily true} if the summary was printed successfully; {\ttfamily false} on any formatting or write error. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_aa08ce919568178b2a576aa6cf4c26930}\label{account_8c_aa08ce919568178b2a576aa6cf4c26930}} 
+\index{account.c@{account.c}!account\_record\_login\_failure@{account\_record\_login\_failure}}
+\index{account\_record\_login\_failure@{account\_record\_login\_failure}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_record\_login\_failure()}{account\_record\_login\_failure()}}
+{\footnotesize\ttfamily void account\+\_\+record\+\_\+login\+\_\+failure (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc }\end{DoxyParamCaption})}
+
+
+
+Records a failed login attempt for the specified user account. 
+
+This function increments the {\ttfamily login\+\_\+fail\+\_\+count} field in the given {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure. It also logs the failed attempt, including the user ID and current failure count. If the failure count has reached {\ttfamily UINT\+\_\+\+MAX}, no further increment is performed and a warning is logged instead.
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure associated with the login attempt.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If {\ttfamily login\+\_\+fail\+\_\+count} is less than {\ttfamily UINT\+\_\+\+MAX}, it is incremented by one. Log entry is created.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a2c3dd2f57c748c5d4502017deedcd1db}\label{account_8c_a2c3dd2f57c748c5d4502017deedcd1db}} 
+\index{account.c@{account.c}!account\_record\_login\_success@{account\_record\_login\_success}}
+\index{account\_record\_login\_success@{account\_record\_login\_success}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_record\_login\_success()}{account\_record\_login\_success()}}
+{\footnotesize\ttfamily void account\+\_\+record\+\_\+login\+\_\+success (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{ip4\+\_\+addr\+\_\+t}]{ip }\end{DoxyParamCaption})}
+
+
+
+Records a successful login for a user account, updating metadata and logging the event. 
+
+This function updates the given {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to reflect a successful login event by\+:
+\begin{DoxyItemize}
+\item Storing the current time in {\ttfamily last\+\_\+login\+\_\+time}.
+\item Saving the provided IPv4 address to {\ttfamily last\+\_\+ip}.
+\item Resetting the {\ttfamily login\+\_\+fail\+\_\+count} to zero.
+\end{DoxyItemize}
+
+It converts the IP address to a readable string using {\ttfamily inet\+\_\+ntop()} and formats the timestamp using {\ttfamily format\+\_\+time()}. If IP conversion fails, it falls back to the string {\ttfamily \char`\"{}unknown\char`\"{}} using {\ttfamily safe\+\_\+str\+\_\+copy()}. Errors and successes are logged to aid in debugging and auditing.
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure representing the authenticated user. \\
+\hline
+{\em ip} & The IPv4 address ({\ttfamily ip4\+\_\+addr\+\_\+t}) from which the login occurred.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+The account\textquotesingle{}s {\ttfamily last\+\_\+login\+\_\+time}, {\ttfamily last\+\_\+ip}, and {\ttfamily login\+\_\+fail\+\_\+count} fields are updated. Log entries are provided to indicate the time and IP of the login event.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a5da35963ec07426278f66f9d37db58cb}\label{account_8c_a5da35963ec07426278f66f9d37db58cb}} 
+\index{account.c@{account.c}!account\_set\_email@{account\_set\_email}}
+\index{account\_set\_email@{account\_set\_email}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_set\_email()}{account\_set\_email()}}
+{\footnotesize\ttfamily void account\+\_\+set\+\_\+email (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{const char $\ast$}]{new\+\_\+email }\end{DoxyParamCaption})}
+
+
+
+Provide user function to updates the email field of an existing {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure. 
+
+This function performs the following\+:
+\begin{DoxyItemize}
+\item checks for null inputs
+\item validates the format of the new email string using {\ttfamily check\+\_\+email()}.
+\item Once validated, securely copy it into acc-\/\texorpdfstring{$>$}{>}email to update new value.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure whose email should be updated. \\
+\hline
+{\em new\+\_\+email} & A null-\/terminated string representing the new email address.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} and {\ttfamily new\+\_\+email} must not be NULL. 
+
+{\ttfamily new\+\_\+email} must pass format validation via {\ttfamily check\+\_\+email()}. 
+
+{\ttfamily EMAIL\+\_\+\+LENGTH} must be defined and consistent.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If validation succeeds, {\ttfamily acc-\/\texorpdfstring{$>$}{>}email} is updated with the new value; otherwise, the original email remains unchanged.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a10db748111392ca7df1d47f35a5e8b21}\label{account_8c_a10db748111392ca7df1d47f35a5e8b21}} 
+\index{account.c@{account.c}!account\_set\_expiration\_time@{account\_set\_expiration\_time}}
+\index{account\_set\_expiration\_time@{account\_set\_expiration\_time}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_set\_expiration\_time()}{account\_set\_expiration\_time()}}
+{\footnotesize\ttfamily void account\+\_\+set\+\_\+expiration\+\_\+time (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{time\+\_\+t}]{t }\end{DoxyParamCaption})}
+
+
+
+Sets the expiration time for a user account based on a duration from the current time. 
+
+This function sets the {\ttfamily expiration\+\_\+time} field in the given {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure\+:
+\begin{DoxyItemize}
+\item If {\ttfamily t == 0}, the account is set to never expire ({\ttfamily expiration\+\_\+time} is set to 0).
+\item If {\ttfamily t \texorpdfstring{$>$}{>} 0}, it adds the duration {\ttfamily t} (in seconds) to the current time and sets it as the expiration time.
+\item If {\ttfamily t \texorpdfstring{$>$}{>} MAX\+\_\+\+DURATION}, it is clamped to {\ttfamily MAX\+\_\+\+DURATION} and a warning is logged.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure whose expiration time should be updated. \\
+\hline
+{\em t} & Duration in seconds from the current time after which the account should expire. Use 0 to disable expiration.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL. 
+
+{\ttfamily MAX\+\_\+\+DURATION} must be defined.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If valid, updates {\ttfamily acc-\/\texorpdfstring{$>$}{>}expiration\+\_\+time} based on the current time and duration. Otherwise, no change occurs.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_aada84f2a8333027836a619f14c554ba2}\label{account_8c_aada84f2a8333027836a619f14c554ba2}} 
+\index{account.c@{account.c}!account\_set\_unban\_time@{account\_set\_unban\_time}}
+\index{account\_set\_unban\_time@{account\_set\_unban\_time}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_set\_unban\_time()}{account\_set\_unban\_time()}}
+{\footnotesize\ttfamily void account\+\_\+set\+\_\+unban\+\_\+time (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{time\+\_\+t}]{t }\end{DoxyParamCaption})}
+
+
+
+Sets the unban time for a user account based on a duration from the current time. 
+
+This function updates the {\ttfamily unban\+\_\+time} field in the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure as follows\+:
+\begin{DoxyItemize}
+\item If {\ttfamily t == 0}, the ban is cleared ({\ttfamily unban\+\_\+time} is set to 0).
+\item If {\ttfamily t \texorpdfstring{$>$}{>} 0}, it adds the duration {\ttfamily t} (in seconds) to the current system time.
+\item If {\ttfamily t} exceeds {\ttfamily MAX\+\_\+\+DURATION}, it is clamped to {\ttfamily MAX\+\_\+\+DURATION} and a warning is logged.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure to update. \\
+\hline
+{\em t} & Duration in seconds to set as the remaining ban time. Use 0 to remove the ban.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} must not be NULL. 
+
+{\ttfamily MAX\+\_\+\+DURATION} must be defined.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+Updates {\ttfamily acc-\/\texorpdfstring{$>$}{>}unban\+\_\+time} based on the specified duration and current time.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+None. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_aa4ca3ecc137d919f74b096b4c9c69e06}\label{account_8c_aa4ca3ecc137d919f74b096b4c9c69e06}} 
+\index{account.c@{account.c}!account\_update\_password@{account\_update\_password}}
+\index{account\_update\_password@{account\_update\_password}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_update\_password()}{account\_update\_password()}}
+{\footnotesize\ttfamily bool account\+\_\+update\+\_\+password (\begin{DoxyParamCaption}\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{const char $\ast$}]{new\+\_\+plaintext\+\_\+password }\end{DoxyParamCaption})}
+
+
+
+Updates the stored password hash in an {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure with a new plaintext password provided from user. 
+
+This function performs the following\+:
+\begin{DoxyItemize}
+\item Check new password meets defined security policies.
+\item Locking memory using {\ttfamily sodium\+\_\+mlock()} to protect the password buffer.
+\item Copying the password into the secure buffer using {\ttfamily safe\+\_\+str\+\_\+copy()}.
+\item Hashing the new plaintext password provided using {\ttfamily crypto\+\_\+pwhash\+\_\+str()}.
+\item Clean and unlock memory to remove residual sensitive data.
+\item Log all major events (failures/success) for auditing and debugging.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure whose password will be updated. \\
+\hline
+{\em new\+\_\+plaintext\+\_\+password} & Null-\/terminated string representing the new user-\/provided password.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} and {\ttfamily new\+\_\+plaintext\+\_\+password} must not be NULL. 
+
+{\ttfamily sodium\+\_\+init()} must succeed before any cryptographic operations. 
+
+{\ttfamily new\+\_\+plaintext\+\_\+password} must pass internal validation via {\ttfamily validate\+\_\+password()}.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+If successful, {\ttfamily acc-\/\texorpdfstring{$>$}{>}password\+\_\+hash} is updated with the new securely hashed password. The password buffer is securely wiped and unlocked regardless of outcome.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily true} if the password was successfully updated and hashed; {\ttfamily false} if validation, memory protection, or hashing fails. 
+\end{DoxyReturn}
+\mbox{\Hypertarget{account_8c_a0051b990f5e6a9e4800ed05a7c72fb4d}\label{account_8c_a0051b990f5e6a9e4800ed05a7c72fb4d}} 
+\index{account.c@{account.c}!account\_validate\_password@{account\_validate\_password}}
+\index{account\_validate\_password@{account\_validate\_password}!account.c@{account.c}}
+\doxysubsubsection{\texorpdfstring{account\_validate\_password()}{account\_validate\_password()}}
+{\footnotesize\ttfamily bool account\+\_\+validate\+\_\+password (\begin{DoxyParamCaption}\item[{const \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{acc,  }\item[{const char $\ast$}]{plaintext\+\_\+password }\end{DoxyParamCaption})}
+
+
+
+Validates a user\textquotesingle{}s plaintext password against the stored password hash. 
+
+This function performs the following\+:
+\begin{DoxyItemize}
+\item Check that Libsodium library (if not already initialized).
+\item Check provided plaintext password meets password policy in {\ttfamily validate\+\_\+password()}.
+\item Locks memory for the password buffer using {\ttfamily sodium\+\_\+mlock()} to prevent it from being swapped.
+\item Securely copies the password into the locked buffer.
+\item Verifies the password against the stored hash in the {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure using libsodium\textquotesingle{}s -\/ {\ttfamily crypto\+\_\+pwhash\+\_\+str\+\_\+verify()}.
+\item Cleans and unlocks the memory after verification.
+\item Log all major events (failures/success) for auditing and debugging.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em acc} & Pointer to a valid {\ttfamily \mbox{\hyperlink{structaccount__t}{account\+\_\+t}}} structure containing the stored password hash. \\
+\hline
+{\em plaintext\+\_\+password} & A null-\/terminated string representing the user-\/provided password to validate.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily acc} and {\ttfamily plaintext\+\_\+password} must not be NULL. 
+
+{\ttfamily sodium\+\_\+init()} must succeed prior to cryptographic operations. 
+
+{\ttfamily plaintext\+\_\+password} must pass internal policy checks via {\ttfamily validate\+\_\+password()}.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+On success, securely unlocks and clears the password buffer and return {\ttfamily true}. On failure, record log error and reutrn {\ttfamily false}.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily true} if the plaintext password matches the stored hash; otherwise, {\ttfamily false}. 
+\end{DoxyReturn}

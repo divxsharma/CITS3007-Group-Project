@@ -1,0 +1,64 @@
+\hypertarget{logging_8h}{}\doxysection{logging.\+h File Reference}
+\label{logging_8h}\index{logging.h@{logging.h}}
+
+
+API for the logging system.  
+
+
+{\ttfamily \#include $<$stdio.\+h$>$}\newline
+{\ttfamily \#include $<$stdarg.\+h$>$}\newline
+Include dependency graph for logging.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=204pt]{logging_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=210pt]{logging_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Enumerations}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\Hypertarget{logging_8h_a98121d38a8cf3daf5246a349f912ca1d}\label{logging_8h_a98121d38a8cf3daf5246a349f912ca1d}} 
+enum {\bfseries log\+\_\+level\+\_\+t} \{ {\bfseries LOG\+\_\+\+DEBUG}
+, {\bfseries LOG\+\_\+\+INFO}
+, {\bfseries LOG\+\_\+\+WARN}
+, {\bfseries LOG\+\_\+\+ERROR}
+ \}
+\end{DoxyCompactItemize}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+void \mbox{\hyperlink{logging_8h_acfd97170722882e39e608d3486f367b4}{log\+\_\+message}} (log\+\_\+level\+\_\+t level, const char $\ast$fmt,...)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+API for the logging system. 
+
+Defines log levels and declares the log\+\_\+message function. 
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{logging_8h_acfd97170722882e39e608d3486f367b4}\label{logging_8h_acfd97170722882e39e608d3486f367b4}} 
+\index{logging.h@{logging.h}!log\_message@{log\_message}}
+\index{log\_message@{log\_message}!logging.h@{logging.h}}
+\doxysubsubsection{\texorpdfstring{log\_message()}{log\_message()}}
+{\footnotesize\ttfamily void log\+\_\+message (\begin{DoxyParamCaption}\item[{log\+\_\+level\+\_\+t}]{level,  }\item[{const char $\ast$}]{fmt,  }\item[{}]{... }\end{DoxyParamCaption})}
+
+Log a message with the given log level.
+
+Calling the function with an invalid log level, invalid format string, or invalid arguments results in undefined behavior.
+
+Parameters\+:
+\begin{DoxyItemize}
+\item level The severity level (e.\+g., LOG\+\_\+\+INFO)
+\item fmt A printf-\/style format string
+\item ... Format arguments 
+\end{DoxyItemize}

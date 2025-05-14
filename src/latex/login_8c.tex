@@ -1,0 +1,108 @@
+\hypertarget{login_8c}{}\doxysection{login.\+c File Reference}
+\label{login_8c}\index{login.c@{login.c}}
+
+
+Handles user authentication, session management, and account status checks.  
+
+
+{\ttfamily \#include $<$unistd.\+h$>$}\newline
+{\ttfamily \#include $<$stdbool.\+h$>$}\newline
+{\ttfamily \#include $<$string.\+h$>$}\newline
+{\ttfamily \#include \char`\"{}login.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}logging.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}db.\+h\char`\"{}}\newline
+{\ttfamily \#include \char`\"{}banned.\+h\char`\"{}}\newline
+Include dependency graph for login.\+c\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=350pt]{login_8c__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+login\+\_\+result\+\_\+t \mbox{\hyperlink{login_8c_abf3b37509991b6601c578b8af8cbbacd}{handle\+\_\+login}} (const char $\ast$userid, const char $\ast$password, ip4\+\_\+addr\+\_\+t client\+\_\+ip, time\+\_\+t login\+\_\+time, int client\+\_\+output\+\_\+fd, int log\+\_\+fd, \mbox{\hyperlink{structlogin__session__data__t}{login\+\_\+session\+\_\+data\+\_\+t}} $\ast$session)
+\begin{DoxyCompactList}\small\item\em Handles user login by verifying credentials, account status, and updating session data. \end{DoxyCompactList}\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Handles user authentication, session management, and account status checks. 
+
+This file implements the login procedure for validating user credentials, managing session and enforcing account restrictions like as bans, expiration and login failure. It interacts with the account functions for validation and logs for debug and info purposes.
+
+Functions in this file ensure that only valid, non-\/banned, non-\/expired users with correct credentials are allowed to initiate a session. It securely populates login session metadata and sends status messages to clients.
+
+\begin{DoxyAuthor}{Author}
+Div Sharma \mbox{[}23810783\mbox{]} 
+
+Pranav Rajput \mbox{[}23736075\mbox{]} 
+
+William Lo \mbox{[}23722943\mbox{]} 
+
+Zachary Wang \mbox{[}24648002\mbox{]} 
+
+Jun Hao Dennis Lou \mbox{[}23067779\mbox{]}
+\end{DoxyAuthor}
+\begin{DoxyRefDesc}{Bug}
+\item[\mbox{\hyperlink{bug__bug000002}{Bug}}]No known bugs. \end{DoxyRefDesc}
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{login_8c_abf3b37509991b6601c578b8af8cbbacd}\label{login_8c_abf3b37509991b6601c578b8af8cbbacd}} 
+\index{login.c@{login.c}!handle\_login@{handle\_login}}
+\index{handle\_login@{handle\_login}!login.c@{login.c}}
+\doxysubsubsection{\texorpdfstring{handle\_login()}{handle\_login()}}
+{\footnotesize\ttfamily login\+\_\+result\+\_\+t handle\+\_\+login (\begin{DoxyParamCaption}\item[{const char $\ast$}]{userid,  }\item[{const char $\ast$}]{password,  }\item[{ip4\+\_\+addr\+\_\+t}]{client\+\_\+ip,  }\item[{time\+\_\+t}]{login\+\_\+time,  }\item[{int}]{client\+\_\+output\+\_\+fd,  }\item[{int}]{log\+\_\+fd,  }\item[{\mbox{\hyperlink{structlogin__session__data__t}{login\+\_\+session\+\_\+data\+\_\+t}} $\ast$}]{session }\end{DoxyParamCaption})}
+
+
+
+Handles user login by verifying credentials, account status, and updating session data. 
+
+This function does the following\+:
+\begin{DoxyItemize}
+\item Validating the {\ttfamily userid} and {\ttfamily password} inputs.
+\item Looking up the account by {\ttfamily userid}.
+\item Checking if the account is banned or expired.
+\item Checking for too many failed login attempts.
+\item Verifying the password using secure comparison.
+\item Updating the session data with account ID and session times.
+\item Logging the result of the login attempt.
+\item Sending a success or failure message to the client.
+\end{DoxyItemize}
+
+
+\begin{DoxyParams}{Parameters}
+{\em userid} & A pointer to user identifier string. \\
+\hline
+{\em password} & A pointer to plaintext password string. \\
+\hline
+{\em client\+\_\+ip} & The IPv4 address of the connecting client. \\
+\hline
+{\em login\+\_\+time} & The server time at which login was attempted. \\
+\hline
+{\em client\+\_\+output\+\_\+fd} & File descriptor used to send the login result to the client. \\
+\hline
+{\em log\+\_\+fd} & File descriptor reserved for future logging or audit output. \\
+\hline
+{\em session} & A pointer to {\ttfamily \mbox{\hyperlink{structlogin__session__data__t}{login\+\_\+session\+\_\+data\+\_\+t}}} structure to show on successful login.\\
+\hline
+\end{DoxyParams}
+\begin{DoxyPrecond}{Precondition}
+{\ttfamily userid}, {\ttfamily password}, and {\ttfamily session} must not be NULL. 
+
+{\ttfamily client\+\_\+output\+\_\+fd} must be a valid writable file descriptor.
+\end{DoxyPrecond}
+\begin{DoxyPostcond}{Postcondition}
+On success, session details are filled and a message is sent to the client. On failure, an appropriate {\ttfamily LOGIN\+\_\+\+FAIL\+\_\+$\ast$} result is returned.
+\end{DoxyPostcond}
+\begin{DoxyReturn}{Returns}
+{\ttfamily LOGIN\+\_\+\+SUCCESS} on successful authentication; otherwise, a {\ttfamily login\+\_\+result\+\_\+t} displays reason for failure\+:
+\begin{DoxyItemize}
+\item {\ttfamily LOGIN\+\_\+\+FAIL\+\_\+\+USER\+\_\+\+NOT\+\_\+\+FOUND}
+\item {\ttfamily LOGIN\+\_\+\+FAIL\+\_\+\+BAD\+\_\+\+PASSWORD}
+\item {\ttfamily LOGIN\+\_\+\+FAIL\+\_\+\+ACCOUNT\+\_\+\+BANNED}
+\item {\ttfamily LOGIN\+\_\+\+FAIL\+\_\+\+ACCOUNT\+\_\+\+EXPIRED} 
+\end{DoxyItemize}
+\end{DoxyReturn}

@@ -1,0 +1,59 @@
+\hypertarget{banned_8h_source}{}\doxysection{banned.\+h}
+
+\begin{DoxyCode}{0}
+\DoxyCodeLine{1 }
+\DoxyCodeLine{11 \textcolor{preprocessor}{ \#ifndef BANNED\_H}}
+\DoxyCodeLine{12 \textcolor{preprocessor}{ \#define BANNED\_H}}
+\DoxyCodeLine{13  }
+\DoxyCodeLine{14 \textcolor{preprocessor}{ \#ifndef CITS3007\_PERMISSIVE}}
+\DoxyCodeLine{15  }
+\DoxyCodeLine{16  \textcolor{comment}{// Reason: unsafe conversion and process control functions}}
+\DoxyCodeLine{17 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{18 \textcolor{preprocessor}{    atof atoi atol atoll system}}
+\DoxyCodeLine{19  }
+\DoxyCodeLine{20  \textcolor{comment}{// Reason: unsafe string copy functions}}
+\DoxyCodeLine{21 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{22 \textcolor{preprocessor}{    strcpy strcpyA strcpyW wcscpy \_tcscpy \_mbscpy StrCpy StrCpyA StrCpyW \(\backslash\)}}
+\DoxyCodeLine{23 \textcolor{preprocessor}{    lstrcpy lstrcpyA lstrcpyW \_tccpy \_mbccpy \_ftcscpy \(\backslash\)}}
+\DoxyCodeLine{24 \textcolor{preprocessor}{    strncpy wcsncpy \_tcsncpy \_mbsncpy \_mbsnbcpy StrCpyN StrCpyNA StrCpyNW \(\backslash\)}}
+\DoxyCodeLine{25 \textcolor{preprocessor}{    StrNCpy strcpynA StrNCpyA StrNCpyW lstrcpyn lstrcpynA lstrcpynW \_fstrncpy}}
+\DoxyCodeLine{26 }
+\DoxyCodeLine{27  \textcolor{comment}{// Reason: unsafe string concatenation functions}}
+\DoxyCodeLine{28 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{29 \textcolor{preprocessor}{    strcat strcatA strcatW wcscat \_tcscat \_mbscat StrCat StrCatA StrCatW \(\backslash\)}}
+\DoxyCodeLine{30 \textcolor{preprocessor}{    lstrcat lstrcatA lstrcatW StrCatBuff StrCatBuffA StrCatBuffW StrCatChainW \(\backslash\)}}
+\DoxyCodeLine{31 \textcolor{preprocessor}{    \_tccat \_mbccat \_ftcscat strncat wcsncat \_tcsncat \_mbsncat \_mbsnbcat \(\backslash\)}}
+\DoxyCodeLine{32 \textcolor{preprocessor}{    StrCatN StrCatNA StrCatNW StrNCat StrNCatA StrNCatW lstrncat lstrcatnA lstrcatnW lstrcatn \_fstrncat}}
+\DoxyCodeLine{33  }
+\DoxyCodeLine{34  \textcolor{comment}{// Reason: unsafe sprintf-\/style functions}}
+\DoxyCodeLine{35 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{36 \textcolor{preprocessor}{    sprintfW sprintfA wsprintf wsprintfW wsprintfA sprintf swprintf \(\backslash\)}}
+\DoxyCodeLine{37 \textcolor{preprocessor}{    \_stprintf wvsprintf wvsprintfA wvsprintfW vsprintf \_vstprintf vswprintf \(\backslash\)}}
+\DoxyCodeLine{38 \textcolor{preprocessor}{ }}
+\DoxyCodeLine{39  \textcolor{comment}{// Reason: unsafe string length and memory operations}}
+\DoxyCodeLine{40 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{41 \textcolor{preprocessor}{    memcpy RtlCopyMemory CopyMemory wmemcpy}}
+\DoxyCodeLine{42  }
+\DoxyCodeLine{43  \textcolor{comment}{// Reason: unsafe gets functions}}
+\DoxyCodeLine{44 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{45 \textcolor{preprocessor}{    gets \_getts \_gettws}}
+\DoxyCodeLine{46  }
+\DoxyCodeLine{47  \textcolor{comment}{// Reason: standard FILE-\/based I/O}}
+\DoxyCodeLine{48 \textcolor{preprocessor}{ \#pragma GCC poison \(\backslash\)}}
+\DoxyCodeLine{49 \textcolor{preprocessor}{    fopen freopen fclose fflush fgets fputs fread fwrite fgetc fputc \(\backslash\)}}
+\DoxyCodeLine{50 \textcolor{preprocessor}{    getc getchar putc putchar ungetc tmpfile tmpnam FILE}}
+\DoxyCodeLine{51  }
+\DoxyCodeLine{52  \textcolor{comment}{// Reason: Redirect use of standard I/O streams to log-\/safe alternatives}}
+\DoxyCodeLine{53 \textcolor{preprocessor}{ \#undef stdin}}
+\DoxyCodeLine{54 \textcolor{preprocessor}{ \#undef stdout}}
+\DoxyCodeLine{55 \textcolor{preprocessor}{ \#undef stderr}}
+\DoxyCodeLine{56 \textcolor{preprocessor}{ \#define stdin  DO\_NOT\_USE\_stdin\_USE\_LOGGING}}
+\DoxyCodeLine{57 \textcolor{preprocessor}{ \#define stdout DO\_NOT\_USE\_stdout\_USE\_LOGGING}}
+\DoxyCodeLine{58 \textcolor{preprocessor}{ \#define stderr DO\_NOT\_USE\_stderr\_USE\_LOGGING}}
+\DoxyCodeLine{59  }
+\DoxyCodeLine{60 \textcolor{preprocessor}{ \#endif }}
+\DoxyCodeLine{61  }
+\DoxyCodeLine{62 \textcolor{preprocessor}{ \#endif }}
+\DoxyCodeLine{63  }
+
+\end{DoxyCode}

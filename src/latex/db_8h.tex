@@ -1,0 +1,54 @@
+\hypertarget{db_8h}{}\doxysection{db.\+h File Reference}
+\label{db_8h}\index{db.h@{db.h}}
+
+
+API for the database system.  
+
+
+{\ttfamily \#include \char`\"{}account.\+h\char`\"{}}\newline
+Include dependency graph for db.\+h\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=280pt]{db_8h__incl}
+\end{center}
+\end{figure}
+This graph shows which files directly or indirectly include this file\+:
+\nopagebreak
+\begin{figure}[H]
+\begin{center}
+\leavevmode
+\includegraphics[width=129pt]{db_8h__dep__incl}
+\end{center}
+\end{figure}
+\doxysubsection*{Functions}
+\begin{DoxyCompactItemize}
+\item 
+bool \mbox{\hyperlink{db_8h_aebcd56595be75c45f6c5448014dc31f2}{account\+\_\+lookup\+\_\+by\+\_\+userid}} (const char $\ast$userid, \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$result)
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+API for the database system. 
+
+
+
+\doxysubsection{Function Documentation}
+\mbox{\Hypertarget{db_8h_aebcd56595be75c45f6c5448014dc31f2}\label{db_8h_aebcd56595be75c45f6c5448014dc31f2}} 
+\index{db.h@{db.h}!account\_lookup\_by\_userid@{account\_lookup\_by\_userid}}
+\index{account\_lookup\_by\_userid@{account\_lookup\_by\_userid}!db.h@{db.h}}
+\doxysubsubsection{\texorpdfstring{account\_lookup\_by\_userid()}{account\_lookup\_by\_userid()}}
+{\footnotesize\ttfamily bool account\+\_\+lookup\+\_\+by\+\_\+userid (\begin{DoxyParamCaption}\item[{const char $\ast$}]{userid,  }\item[{\mbox{\hyperlink{structaccount__t}{account\+\_\+t}} $\ast$}]{result }\end{DoxyParamCaption})}
+
+Looks up an account by user ID.
+
+Parameters\+:
+
+
+\begin{DoxyItemize}
+\item username -\/ user ID to look up
+\item result -\/ pointer to an \mbox{\hyperlink{structaccount__t}{account\+\_\+t}} to be filled in on success
+\end{DoxyItemize}
+
+Returns\+: true if the account was found and populated, false otherwise. 
